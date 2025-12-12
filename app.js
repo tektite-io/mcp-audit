@@ -6,16 +6,16 @@
  */
 
 // Analytics endpoint
-const ANALYTICS_URL = 'https://script.google.com/a/macros/apisec.ai/s/AKfycbxJ9-VwHe4455XkRElauSC8pWx65q-1OgKWQJNZnafBkfFjbvmOM6qvp07RMwUm0Qml/exec';
+const ANALYTICS_URL = 'https://script.google.com/macros/s/AKfycbxJ9-VwHe4455XkRElauSC8pWx65q-1OgKWQJNZnafBkfFjbvmOM6qvp07RMwUm0Qml/exec';
 
 // Send analytics event (fire and forget, non-blocking)
 function trackEvent(eventData) {
     try {
-        fetch(ANALYTICS_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Required for Google Apps Script
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(eventData)
+        // Use GET with query params (more reliable with Google Apps Script CORS)
+        const params = new URLSearchParams(eventData).toString();
+        fetch(`${ANALYTICS_URL}?${params}`, {
+            method: 'GET',
+            mode: 'no-cors'
         }).catch(() => {}); // Silently ignore errors
     } catch (e) {
         // Ignore analytics errors - don't affect user experience
