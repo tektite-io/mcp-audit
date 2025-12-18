@@ -311,6 +311,11 @@ function initializeEventListeners() {
         resetGitHubState();
     });
 
+    // CLI download tracking
+    document.querySelector('.download-btn')?.addEventListener('click', () => {
+        trackEvent({ event: 'cli_download', source: 'local-audit-tab' });
+    });
+
     connectBtn?.addEventListener('click', handleConnect);
     scanBtn?.addEventListener('click', handleScan);
     orgSelect?.addEventListener('change', () => {
