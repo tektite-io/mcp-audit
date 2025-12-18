@@ -446,7 +446,7 @@ async function handleScan() {
         const { login, type } = selected;
 
         // Track scan started
-        trackEvent({ event: 'scan_started', source: 'github', org_name: login });
+        trackEvent({ event: 'scan_started', source: 'github' });
 
         log(`Scanning ${type === 'org' ? 'organization' : 'user'}: ${login}`);
 
@@ -537,7 +537,6 @@ async function handleScan() {
         trackEvent({
             event: 'scan_completed',
             source: 'github',
-            org_name: login,
             mcps_found: scanResults.length,
             known_mcps: knownCount,
             unknown_mcps: unknownCount
