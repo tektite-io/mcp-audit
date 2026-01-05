@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Started - APIsec MCP Audit</title>
+    <link rel="stylesheet" href="styles.css?v=9">
+    <style>
+        /* Additional styles for getting-started page */
+        .hero {
+            text-align: center;
+            padding: 2.5rem 0 2rem;
+        }
+
+        .hero h1 {
+            font-size: 1.75rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .hero h1 span {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .hero .subtitle {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            max-width: 540px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            max-width: 640px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .demo-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 2rem;
+        }
+
+        .demo-card h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: var(--text);
+        }
+
+        .demo-card .demo-intro {
+            color: var(--text-muted);
+            margin-bottom: 1.75rem;
+            font-size: 0.95rem;
+        }
+
+        .demo-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .demo-step {
+            display: flex;
+            gap: 0.875rem;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            background: transparent;
+            color: var(--primary);
+            border: 1.5px solid var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
+            font-size: 0.85rem;
+        }
+
+        .step-content {
+            flex: 1;
+            padding-top: 0.15rem;
+        }
+
+        .step-content h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+            color: var(--text);
+        }
+
+        .step-content p {
+            color: var(--text-muted);
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .token-box {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            color: #475569;
+            padding: 0.625rem 0.875rem;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+            font-size: 0.8rem;
+            margin-top: 0.625rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            word-break: break-all;
+        }
+
+        .token-box code {
+            flex: 1;
+            user-select: all;
+        }
+
+        .copy-btn {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.35rem 0.625rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--background);
+            border-color: var(--text-muted);
+        }
+
+        .copy-btn.copied {
+            background: #ecfdf5;
+            border-color: #10b981;
+            color: #059669;
+        }
+
+        .org-highlight {
+            background: #f1f5f9;
+            color: #334155;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .privacy-note {
+            display: flex;
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .privacy-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .privacy-item svg {
+            color: #10b981;
+            flex-shrink: 0;
+            opacity: 0.8;
+        }
+
+        .start-audit-btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-top: 1.75rem;
+            transition: all 0.15s ease;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .start-audit-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .what-youll-see {
+            background: #fafbfc;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem 1.25rem;
+            margin-top: 1.5rem;
+        }
+
+        .what-youll-see h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.6rem;
+            color: var(--text);
+        }
+
+        .what-youll-see ul {
+            margin: 0;
+            padding-left: 1.1rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .what-youll-see li {
+            margin-bottom: 0.25rem;
+        }
+
+        .next-steps {
+            max-width: 640px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .next-steps h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.875rem;
+            color: var(--text);
+        }
+
+        .next-steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 0.875rem;
+        }
+
+        .next-step-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.125rem;
+        }
+
+        .next-step-card h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: var(--text);
+        }
+
+        .next-step-card p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .next-step-card code {
+            background: #f1f5f9;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>APIsec MCP Audit</h1>
+            <p class="subtitle">Security governance for AI agent integrations</p>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>Welcome to <span>APIsec MCP Audit</span></h1>
+            <p class="subtitle">
+                Discover AI agent integrations (MCPs) across your GitHub repos.
+                Find unverified packages, overprivileged access, and secrets in config files.
+            </p>
+        </section>
+
+        <!-- Demo Section -->
+        <section class="demo-section">
+            <div class="demo-card">
+                <h2>Try the Demo</h2>
+                <p class="demo-intro">
+                    See MCP Audit in action with our pre-configured demo environment. No signup required.
+                </p>
+
+                <div class="demo-steps">
+                    <div class="demo-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Open MCP Audit</h3>
+                            <p>Click the button below to open the audit tool.</p>
+                        </div>
+                    </div>
+
+                    <div class="demo-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Paste the Demo Token</h3>
+                            <p>When prompted for a GitHub token, copy and paste this read-only demo token:</p>
+                            <div class="token-box">
+                                <code id="demo-token">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</code>
+                                <button class="copy-btn" onclick="copyToken()">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="demo-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Select the Demo Organization</h3>
+                            <p>From the organization dropdown, select <span class="org-highlight">dan-apisecu</span></p>
+                        </div>
+                    </div>
+
+                    <div class="demo-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Run the Audit</h3>
+                            <p>Click <strong>Scan Repositories</strong> and wait a few seconds for results.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="what-youll-see">
+                    <h4>What You'll See</h4>
+                    <ul>
+                        <li>MCPs discovered across the demo repositories</li>
+                        <li>Risk flags: unknown sources, exposed secrets, risky permissions</li>
+                        <li>Registry verification status for each MCP</li>
+                        <li>Export options: JSON, CSV, Markdown</li>
+                    </ul>
+                </div>
+
+                <a href="index.html" class="start-audit-btn">Start Your Audit →</a>
+
+                <div class="privacy-note">
+                    <div class="privacy-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Read-only demo token</span>
+                    </div>
+                    <div class="privacy-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Runs entirely in your browser</span>
+                    </div>
+                    <div class="privacy-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>No data sent to our servers</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Next Steps -->
+        <section class="next-steps">
+            <h2>Ready to Audit Your Own Repos?</h2>
+            <div class="next-steps-grid">
+                <div class="next-step-card">
+                    <h3>Scan Your GitHub Organization</h3>
+                    <p>
+                        Generate your own GitHub token with <code>repo</code> and <code>read:org</code> scopes,
+                        then scan your organization's repositories.
+                    </p>
+                </div>
+                <div class="next-step-card">
+                    <h3>Scan Locally with the CLI</h3>
+                    <p>
+                        Download the CLI tool to scan your local machine for MCP configurations
+                        in Claude Desktop, Cursor, VS Code, and more.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                <strong>APIsec MCP Audit</strong> — Security governance for AI agent integrations
+            </p>
+            <p style="margin-top: 0.5rem;">
+                Questions or feedback? Contact us at
+                <a href="mailto:support@apisec.ai">support@apisec.ai</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        function copyToken() {
+            const token = document.getElementById('demo-token').textContent;
+            navigator.clipboard.writeText(token).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
