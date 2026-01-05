@@ -46,6 +46,7 @@ class ScanResult:
     risk_flags: list[str] = field(default_factory=list)  # Identified risks
     raw_config: dict = field(default_factory=dict)  # Original config data
     secrets: list = field(default_factory=list)  # Detected secrets (list of DetectedSecret)
+    apis: list = field(default_factory=list)  # Detected API endpoints (list of DetectedAPI)
     # Registry match fields
     is_known: bool = False  # Whether found in known MCP registry
     provider: Optional[str] = None  # Provider from registry
@@ -69,6 +70,9 @@ class ScanResult:
         # Add secrets if detected (always masked)
         if self.secrets:
             result["secrets"] = [s.to_dict() if hasattr(s, 'to_dict') else s for s in self.secrets]
+        # Add APIs if detected
+        if self.apis:
+            result["apis"] = [a.to_dict() if hasattr(a, 'to_dict') else a for a in self.apis]
         # Add registry info if available
         if self.is_known:
             result["registry"] = {
@@ -119,6 +123,9 @@ class ScanResult:
         # Detect secrets in environment variables
         secrets = _detect_secrets_in_env(env, config_path, name)
 
+        # Detect API endpoints
+        apis = _detect_apis_in_config(data, args, name)
+
         # Add secrets-detected flag if secrets found
         if secrets:
             if "secrets-detected" not in risk_flags:
@@ -144,6 +151,7 @@ class ScanResult:
             risk_flags=risk_flags,
             raw_config=data,
             secrets=secrets,
+            apis=apis,
         )
 
 
@@ -330,3 +338,19 @@ def _detect_secrets_in_env(env: dict, config_path: str = None, mcp_name: str = N
         ))
 
     return secrets
+
+
+def _detect_apis_in_config(raw_config: dict, args: list, mcp_name: str) -> list:
+    """
+    Detect API endpoints in MCP configuration.
+    Returns list of DetectedAPI objects.
+    """
+    try:
+        from mcp_audit.data.api_patterns import detect_apis
+    except ImportError:
+        return []
+
+    if not raw_config:
+        return []
+
+    return detect_apis(raw_config, args, mcp_name)

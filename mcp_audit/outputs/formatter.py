@@ -47,6 +47,9 @@ def _to_json(results: list[ScanResult]) -> str:
     # Collect secrets (always masked)
     secrets_data = _build_secrets_summary(results)
 
+    # Collect APIs
+    apis_data = _build_apis_summary(results)
+
     data = {
         "scan_time": datetime.now().isoformat(),
         "total_mcps": len(results),
@@ -57,6 +60,10 @@ def _to_json(results: list[ScanResult]) -> str:
     # Add secrets section if any detected
     if secrets_data["total"] > 0:
         data["secrets_detected"] = secrets_data
+
+    # Add APIs section if any detected
+    if apis_data["total"] > 0:
+        data["apis_detected"] = apis_data
 
     return json.dumps(data, indent=2)
 
@@ -80,6 +87,28 @@ def _build_secrets_summary(results: list[ScanResult]) -> dict:
         "high": high,
         "medium": medium,
         "items": all_secrets,
+    }
+
+
+def _build_apis_summary(results: list[ScanResult]) -> dict:
+    """Build API endpoints summary from results"""
+    all_apis = []
+    for r in results:
+        for a in r.apis:
+            api_dict = a.to_dict() if hasattr(a, 'to_dict') else a
+            api_dict["source_mcp"] = r.name
+            all_apis.append(api_dict)
+
+    # Count by category
+    categories = {}
+    for a in all_apis:
+        cat = a.get("category", "unknown")
+        categories[cat] = categories.get(cat, 0) + 1
+
+    return {
+        "total": len(all_apis),
+        "by_category": categories,
+        "items": all_apis,
     }
 
 
@@ -145,6 +174,39 @@ def _to_markdown(results: list[ScanResult]) -> str:
                     lines.append(f"| {s['description']} | {s['source_mcp']} → {s['env_key']} | `{s['value_masked']}` | {rotate_link} |")
                 lines.append("")
 
+    # APIs section (after secrets, before MCP inventory)
+    apis_data = _build_apis_summary(results)
+    if apis_data["total"] > 0:
+        lines.extend([
+            "## 📡 API Endpoints Detected",
+            "",
+            f"**{apis_data['total']} API endpoint(s) discovered**",
+            "",
+            "| Category | MCP | URL | Source |",
+            "|----------|-----|-----|--------|",
+        ])
+
+        # Category display names
+        category_names = {
+            "database": "🗄️ Database",
+            "rest_api": "🌐 REST API",
+            "websocket": "🔌 WebSocket",
+            "sse": "📡 SSE",
+            "saas": "☁️ SaaS",
+            "cloud": "🏢 Cloud",
+            "unknown": "❓ Other",
+        }
+
+        for api in apis_data["items"]:
+            cat = api.get("category", "unknown")
+            cat_name = category_names.get(cat, cat)
+            mcp_name = api.get("source_mcp", "unknown")
+            url = api.get("url", "unknown")
+            source = f"{api.get('source', '')} → {api.get('source_key', '')}"
+            lines.append(f"| {cat_name} | {mcp_name} | `{url}` | {source} |")
+
+        lines.append("")
+
     # MCP Inventory
     lines.extend([
         "## MCP Inventory",
@@ -185,7 +247,7 @@ def _to_markdown(results: list[ScanResult]) -> str:
 
 def _to_csv(results: list[ScanResult]) -> str:
     """Convert results to CSV"""
-    lines = ["name,source,found_in,server_type,risk_flags,secrets_count,secrets_severity,config_path"]
+    lines = ["name,source,found_in,server_type,risk_flags,secrets_count,secrets_severity,apis_count,api_categories,config_path"]
 
     for r in results:
         risk_flags = "|".join(r.risk_flags)
@@ -206,7 +268,18 @@ def _to_csv(results: list[ScanResult]) -> str:
         else:
             secrets_severity = ''
 
-        lines.append(f"{r.name},{source},{r.found_in},{r.server_type},{risk_flags},{secrets_count},{secrets_severity},{config_path}")
+        # APIs info
+        apis_count = len(r.apis)
+        if apis_count > 0:
+            categories = set()
+            for a in r.apis:
+                cat = a.category if hasattr(a, 'category') else a.get('category', 'unknown')
+                categories.add(cat)
+            api_categories = "|".join(sorted(categories))
+        else:
+            api_categories = ''
+
+        lines.append(f"{r.name},{source},{r.found_in},{r.server_type},{risk_flags},{secrets_count},{secrets_severity},{apis_count},{api_categories},{config_path}")
 
     return "\n".join(lines)
 

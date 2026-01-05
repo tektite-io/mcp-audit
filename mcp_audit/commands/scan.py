@@ -51,6 +51,12 @@ def scan_local(
     no_secrets: bool = typer.Option(
         False, "--no-secrets", help="Skip secrets detection entirely"
     ),
+    apis_only: bool = typer.Option(
+        False, "--apis-only", help="Only show detected API endpoints, skip MCP inventory"
+    ),
+    no_apis: bool = typer.Option(
+        False, "--no-apis", help="Skip API endpoint detection entirely"
+    ),
 ):
     """
     Scan for MCP configurations on local machine or in a directory.
@@ -142,6 +148,11 @@ def scan_local(
             if "secrets-detected" in r.risk_flags:
                 r.risk_flags.remove("secrets-detected")
 
+    # Clear APIs if --no-apis flag
+    if no_apis:
+        for r in results:
+            r.apis = []
+
     # Collect all secrets for display
     all_secrets = []
     for r in results:
@@ -150,8 +161,16 @@ def scan_local(
             secret_info["mcp_name"] = r.name
             all_secrets.append(secret_info)
 
+    # Collect all APIs for display
+    all_apis = []
+    for r in results:
+        for a in r.apis:
+            api_info = a.to_dict() if hasattr(a, 'to_dict') else a
+            api_info["mcp_name"] = r.name
+            all_apis.append(api_info)
+
     # Show secrets section FIRST if any detected (highest priority)
-    if all_secrets and not secrets_only:
+    if all_secrets and not secrets_only and not apis_only:
         _print_secrets_alert(all_secrets)
 
     # If secrets-only mode, show secrets and return
@@ -160,6 +179,18 @@ def scan_local(
             _print_secrets_detail(all_secrets)
         else:
             console.print("\n[green]No secrets detected in MCP configurations.[/green]")
+        return
+
+    # Show API inventory section (after secrets, before MCP table)
+    if all_apis and not apis_only:
+        _print_apis_inventory(all_apis)
+
+    # If apis-only mode, show APIs and return
+    if apis_only:
+        if all_apis:
+            _print_apis_inventory(all_apis, detailed=True)
+        else:
+            console.print("\n[green]No API endpoints detected in MCP configurations.[/green]")
         return
 
     # Output results
@@ -553,3 +584,66 @@ def _print_secrets_detail(secrets: list):
     high = sum(1 for s in secrets if s.get("severity") == "high")
     medium = sum(1 for s in secrets if s.get("severity") == "medium")
     console.print(f"Total: {len(secrets)} secrets ({critical} critical, {high} high, {medium} medium)")
+
+
+def _print_apis_inventory(apis: list, detailed: bool = False):
+    """Print API endpoints inventory"""
+    if not apis:
+        return
+
+    # Category display info
+    category_info = {
+        "database": {"name": "Database", "icon": "🗄️", "color": "cyan"},
+        "rest_api": {"name": "REST API", "icon": "🌐", "color": "blue"},
+        "websocket": {"name": "WebSocket", "icon": "🔌", "color": "magenta"},
+        "sse": {"name": "SSE", "icon": "📡", "color": "yellow"},
+        "saas": {"name": "SaaS", "icon": "☁️", "color": "green"},
+        "cloud": {"name": "Cloud", "icon": "🏢", "color": "white"},
+        "unknown": {"name": "Other", "icon": "❓", "color": "dim"},
+    }
+
+    # Group by category
+    by_category = {}
+    for api in apis:
+        cat = api.get("category", "unknown")
+        if cat not in by_category:
+            by_category[cat] = []
+        by_category[cat].append(api)
+
+    console.print()
+    console.print("═" * 60)
+    console.print(f"[bold blue]📡 API INVENTORY[/bold blue] - {len(apis)} endpoint(s) discovered")
+    console.print("═" * 60)
+
+    # Print by category
+    category_order = ["database", "rest_api", "websocket", "sse", "saas", "cloud", "unknown"]
+    for cat in category_order:
+        if cat not in by_category:
+            continue
+
+        cat_apis = by_category[cat]
+        info = category_info.get(cat, category_info["unknown"])
+        color = info["color"]
+
+        console.print()
+        console.print(f"[bold {color}]{info['icon']} {info['name'].upper()} ({len(cat_apis)})[/bold {color}]")
+
+        for api in cat_apis:
+            mcp_name = api.get("mcp_name", "unknown")
+            url = api.get("url", "unknown")  # Already masked in to_dict()
+            description = api.get("description", "")
+            source = api.get("source", "")
+            source_key = api.get("source_key", "")
+
+            if detailed:
+                # Detailed mode for --apis-only
+                console.print(f"  [{color}]•[/{color}] [bold]{mcp_name}[/bold]")
+                console.print(f"      URL: {url}")
+                console.print(f"      Description: {description}")
+                console.print(f"      Source: {source} → {source_key}")
+            else:
+                # Compact mode for normal scan
+                console.print(f"  [{color}]•[/{color}] {mcp_name} → {url}")
+
+    console.print()
+    console.print("─" * 60)

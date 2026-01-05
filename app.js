@@ -323,6 +323,122 @@ const SECRET_PATTERNS = {
     }
 };
 
+// API endpoint detection patterns
+const API_PATTERNS = {
+    // Databases
+    postgresql: {
+        pattern: /postgres(ql)?:\/\/[^\s"']+/i,
+        category: "database",
+        description: "PostgreSQL Database"
+    },
+    mysql: {
+        pattern: /mysql:\/\/[^\s"']+/i,
+        category: "database",
+        description: "MySQL Database"
+    },
+    mongodb: {
+        pattern: /mongodb(\+srv)?:\/\/[^\s"']+/i,
+        category: "database",
+        description: "MongoDB Database"
+    },
+    redis: {
+        pattern: /redis:\/\/[^\s"']+/i,
+        category: "database",
+        description: "Redis Cache"
+    },
+    sqlite: {
+        pattern: /sqlite:(?:\/\/)?[^\s"']+/i,
+        category: "database",
+        description: "SQLite Database"
+    },
+    // WebSocket
+    websocket: {
+        pattern: /wss?:\/\/[^\s"']+/i,
+        category: "websocket",
+        description: "WebSocket Connection"
+    },
+    // Known SaaS/MCP endpoints
+    slack_api: {
+        pattern: /https?:\/\/(?:api\.)?slack\.com[^\s"']*/i,
+        category: "saas",
+        description: "Slack API"
+    },
+    github_api: {
+        pattern: /https?:\/\/(?:api\.)?github\.com[^\s"']*/i,
+        category: "saas",
+        description: "GitHub API"
+    },
+    github_mcp: {
+        pattern: /https?:\/\/mcp\.github\.com[^\s"']*/i,
+        category: "sse",
+        description: "GitHub MCP (SSE)"
+    },
+    linear_mcp: {
+        pattern: /https?:\/\/mcp\.linear\.app[^\s"']*/i,
+        category: "sse",
+        description: "Linear MCP (SSE)"
+    },
+    asana_mcp: {
+        pattern: /https?:\/\/mcp\.asana\.com[^\s"']*/i,
+        category: "sse",
+        description: "Asana MCP (SSE)"
+    },
+    openai_api: {
+        pattern: /https?:\/\/api\.openai\.com[^\s"']*/i,
+        category: "saas",
+        description: "OpenAI API"
+    },
+    anthropic_api: {
+        pattern: /https?:\/\/api\.anthropic\.com[^\s"']*/i,
+        category: "saas",
+        description: "Anthropic API"
+    },
+    // Cloud providers
+    aws_s3: {
+        pattern: /https?:\/\/[^\/]*\.s3\.amazonaws\.com[^\s"']*/i,
+        category: "cloud",
+        description: "AWS S3"
+    },
+    aws_api: {
+        pattern: /https?:\/\/[^\/]*\.amazonaws\.com[^\s"']*/i,
+        category: "cloud",
+        description: "AWS API"
+    },
+    gcp_api: {
+        pattern: /https?:\/\/[^\/]*\.googleapis\.com[^\s"']*/i,
+        category: "cloud",
+        description: "Google Cloud API"
+    },
+    azure_api: {
+        pattern: /https?:\/\/[^\/]*\.azure\.com[^\s"']*/i,
+        category: "cloud",
+        description: "Azure API"
+    },
+    // Generic SSE (contains /sse path)
+    sse_endpoint: {
+        pattern: /https?:\/\/[^\s"']+\/sse[^\s"']*/i,
+        category: "sse",
+        description: "SSE Endpoint"
+    }
+};
+
+// URL fields in config to check
+const CONFIG_URL_FIELDS = ['url', 'serverUrl', 'endpoint', 'baseUrl', 'uri', 'host', 'server', 'apiUrl', 'apiEndpoint'];
+
+// Environment variable patterns for URLs
+const ENV_URL_PATTERNS = ['_URL', '_ENDPOINT', '_HOST', '_API', '_URI', '_SERVER', '_BASE'];
+
+// Category display info
+const API_CATEGORY_INFO = {
+    database: { name: "Database", icon: "🗄️", color: "#17a2b8" },
+    rest_api: { name: "REST API", icon: "🌐", color: "#007bff" },
+    websocket: { name: "WebSocket", icon: "🔌", color: "#6f42c1" },
+    sse: { name: "SSE", icon: "📡", color: "#ffc107" },
+    saas: { name: "SaaS", icon: "☁️", color: "#28a745" },
+    cloud: { name: "Cloud", icon: "🏢", color: "#6c757d" },
+    unknown: { name: "Other", icon: "❓", color: "#adb5bd" }
+};
+
 // Placeholder patterns to skip (not real secrets)
 const PLACEHOLDER_PATTERNS = [
     /^xxx+$/i,
@@ -413,6 +529,145 @@ function detectSecrets(env, mcpName) {
     }
 
     return secrets;
+}
+
+// Mask credentials in URL for safe display
+function maskUrlCredentials(url) {
+    if (!url) return url;
+    // Pattern to match credentials in URL: protocol://user:pass@host
+    return url.replace(/:\/\/([^:@]+):([^@]+)@/g, '://****:****@');
+}
+
+// Classify a URL and return category and description
+function classifyUrl(url) {
+    const urlLower = url.toLowerCase();
+
+    // Check specific patterns first
+    for (const [name, config] of Object.entries(API_PATTERNS)) {
+        if (config.pattern.test(url)) {
+            return { category: config.category, description: config.description };
+        }
+    }
+
+    // Generic HTTP/HTTPS
+    if (urlLower.startsWith('http://') || urlLower.startsWith('https://')) {
+        return { category: 'rest_api', description: 'HTTP API Endpoint' };
+    }
+
+    return { category: 'unknown', description: 'Unknown Endpoint' };
+}
+
+// Detect API endpoints from MCP configuration
+function detectApis(rawConfig, args, mcpName) {
+    const apis = [];
+    const seenUrls = new Set();
+
+    if (!rawConfig) return apis;
+
+    const env = rawConfig.env || {};
+
+    // 1. Check environment variables for URLs
+    for (const [key, value] of Object.entries(env)) {
+        if (typeof value !== 'string' || value.length < 8) continue;
+        if (value.startsWith('$') || value.startsWith('${')) continue; // Env var reference
+
+        // Check if key suggests it's a URL
+        const keyUpper = key.toUpperCase();
+        const isUrlKey = ENV_URL_PATTERNS.some(p => keyUpper.includes(p));
+
+        // Extract URLs from the value
+        const urls = extractUrls(value);
+        for (const url of urls) {
+            if (seenUrls.has(url)) continue;
+            seenUrls.add(url);
+
+            const { category, description } = classifyUrl(url);
+            apis.push({
+                url: url,
+                maskedUrl: maskUrlCredentials(url),
+                category: category,
+                description: description,
+                source: 'env_var',
+                sourceKey: key,
+                mcpName: mcpName
+            });
+        }
+    }
+
+    // 2. Check config fields for URLs
+    for (const field of CONFIG_URL_FIELDS) {
+        const value = rawConfig[field];
+        if (!value || typeof value !== 'string') continue;
+
+        const urls = extractUrls(value);
+        for (const url of urls) {
+            if (seenUrls.has(url)) continue;
+            seenUrls.add(url);
+
+            const { category, description } = classifyUrl(url);
+            apis.push({
+                url: url,
+                maskedUrl: maskUrlCredentials(url),
+                category: category,
+                description: description,
+                source: 'config_field',
+                sourceKey: field,
+                mcpName: mcpName
+            });
+        }
+    }
+
+    // 3. Check command args for URLs
+    if (args && Array.isArray(args)) {
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            if (typeof arg !== 'string' || arg.length < 8) continue;
+
+            const urls = extractUrls(arg);
+            for (const url of urls) {
+                if (seenUrls.has(url)) continue;
+                seenUrls.add(url);
+
+                const { category, description } = classifyUrl(url);
+                apis.push({
+                    url: url,
+                    maskedUrl: maskUrlCredentials(url),
+                    category: category,
+                    description: description,
+                    source: 'args',
+                    sourceKey: `args[${i}]`,
+                    mcpName: mcpName
+                });
+            }
+        }
+    }
+
+    return apis;
+}
+
+// Extract all URLs from a text string
+function extractUrls(text) {
+    const urls = [];
+
+    // Check specific patterns first
+    for (const [name, config] of Object.entries(API_PATTERNS)) {
+        const matches = text.match(new RegExp(config.pattern.source, 'gi'));
+        if (matches) {
+            for (const m of matches) {
+                if (!urls.includes(m)) urls.push(m);
+            }
+        }
+    }
+
+    // Generic HTTP/HTTPS
+    const httpMatches = text.match(/https?:\/\/[^\s"']+/gi);
+    if (httpMatches) {
+        for (const m of httpMatches) {
+            if (!urls.includes(m)) urls.push(m);
+        }
+    }
+
+    return urls;
 }
 
 // Heuristic risk calculation for unknown MCPs
@@ -1101,6 +1356,20 @@ function displayResults() {
         displaySecretsAlert(allSecrets);
     }
 
+    // Detect API endpoints in all scan results
+    const allApis = [];
+    for (const r of scanResults) {
+        const args = r.rawConfig?.args || [];
+        const apis = detectApis(r.rawConfig, args, r.name);
+        r.apis = apis;
+        allApis.push(...apis);
+    }
+
+    // Display APIs inventory if any found
+    if (allApis.length > 0) {
+        displayApisInventory(allApis);
+    }
+
     // Summary
     const totalMcps = scanResults.length;
     const uniqueRepos = new Set(scanResults.map(r => r.repository)).size;
@@ -1511,6 +1780,92 @@ function displaySecretsAlert(secrets) {
 function toggleSecretsDetail() {
     const detail = document.getElementById('secrets-detail');
     const icon = document.querySelector('.secrets-alert .toggle-icon');
+    if (detail) {
+        detail.classList.toggle('expanded');
+        if (icon) {
+            icon.textContent = detail.classList.contains('expanded') ? '▲' : '▼';
+        }
+    }
+}
+
+// Display APIs inventory
+function displayApisInventory(apis) {
+    if (!apis || apis.length === 0) return;
+
+    // Group by category
+    const byCategory = {};
+    for (const api of apis) {
+        const cat = api.category || 'unknown';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(api);
+    }
+
+    // Create or get API inventory container
+    let inventoryDiv = document.getElementById('apis-inventory');
+    if (!inventoryDiv) {
+        inventoryDiv = document.createElement('div');
+        inventoryDiv.id = 'apis-inventory';
+        inventoryDiv.className = 'apis-inventory';
+        // Insert after secrets alert (if exists) or before summary
+        const secretsAlert = document.getElementById('secrets-alert');
+        const summaryEl = document.getElementById('summary');
+        if (secretsAlert && secretsAlert.parentNode) {
+            secretsAlert.parentNode.insertBefore(inventoryDiv, secretsAlert.nextSibling);
+        } else if (summaryEl && summaryEl.parentNode) {
+            summaryEl.parentNode.insertBefore(inventoryDiv, summaryEl);
+        }
+    }
+
+    // Category order
+    const categoryOrder = ['database', 'rest_api', 'websocket', 'sse', 'saas', 'cloud', 'unknown'];
+
+    let categoriesHtml = '';
+    for (const cat of categoryOrder) {
+        if (!byCategory[cat]) continue;
+        const catApis = byCategory[cat];
+        const info = API_CATEGORY_INFO[cat] || API_CATEGORY_INFO.unknown;
+
+        const apisHtml = catApis.map(api => `
+            <div class="api-item">
+                <span class="api-mcp">${escapeHtml(api.mcpName)}</span>
+                <span class="api-arrow">→</span>
+                <code class="api-url">${escapeHtml(api.maskedUrl)}</code>
+                <span class="api-source">(${escapeHtml(api.source)}: ${escapeHtml(api.sourceKey)})</span>
+            </div>
+        `).join('');
+
+        categoriesHtml += `
+            <div class="api-category">
+                <div class="api-category-header">
+                    <span class="api-icon">${info.icon}</span>
+                    <strong>${info.name.toUpperCase()}</strong>
+                    <span class="api-count">(${catApis.length})</span>
+                </div>
+                <div class="api-items">
+                    ${apisHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    inventoryDiv.innerHTML = `
+        <div class="apis-inventory-header" onclick="toggleApisInventory()">
+            <div class="apis-inventory-title">
+                <span class="inventory-icon">📡</span>
+                <strong>API INVENTORY - ${apis.length} endpoint(s) discovered</strong>
+            </div>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div id="apis-detail" class="apis-detail expanded">
+            ${categoriesHtml}
+        </div>
+    `;
+}
+
+// Toggle APIs inventory visibility
+function toggleApisInventory() {
+    const detail = document.getElementById('apis-detail');
+    const icon = document.querySelector('.apis-inventory .toggle-icon');
     if (detail) {
         detail.classList.toggle('expanded');
         if (icon) {
