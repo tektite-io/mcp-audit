@@ -955,15 +955,10 @@ function getRegistryRiskBadge(risk) {
 // Get risk level for styling
 function getRiskLevel(flag) {
     const flagInfo = RISK_FLAGS[flag];
-    if (flagInfo) {
+    if (flagInfo && flagInfo.severity) {
         return flagInfo.severity;
     }
-    const high = ['shell-access', 'unverified-source'];
-    const medium = ['filesystem-access', 'database-access'];
-
-    if (high.includes(flag)) return 'high';
-    if (medium.includes(flag)) return 'medium';
-    return 'low';
+    return 'unknown';
 }
 
 // Get tooltip text for a risk flag
@@ -1111,9 +1106,14 @@ function buildFindings(results) {
         });
     }
 
-    // Sort by severity
-    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, unknown: 4 };
-    findings.sort((a, b) => (severityOrder[a.severity] || 4) - (severityOrder[b.severity] || 4));
+    // Sort by severity: critical first, then high, medium, low, unknown
+    // Note: Using explicit check because 0 is falsy in JavaScript
+    const severityOrder = { critical: 1, high: 2, medium: 3, low: 4, unknown: 5 };
+    findings.sort((a, b) => {
+        const orderA = severityOrder[a.severity] || 5;
+        const orderB = severityOrder[b.severity] || 5;
+        return orderA - orderB;
+    });
 
     return findings;
 }
@@ -1137,11 +1137,11 @@ function displayRemediationSection(results) {
     }
 
     const findingsHtml = findings.map(f => {
-        const severityClass = f.severity === 'critical' ? 'danger' : (f.severity === 'high' ? 'warning' : 'info');
+        const badgeClass = f.severity === 'critical' ? 'danger' : (f.severity === 'high' ? 'warning' : (f.severity === 'medium' ? 'info' : 'secondary'));
         return `
-            <div class="finding-item ${severityClass}">
+            <div class="finding-item">
                 <div class="finding-header">
-                    <span class="badge ${severityClass}">${f.severity.toUpperCase()}</span>
+                    <span class="badge ${badgeClass}">${f.severity.toUpperCase()}</span>
                     <strong>${f.flag}</strong>
                     <span class="mcp-count">(${f.mcps.length} MCP${f.mcps.length > 1 ? 's' : ''} affected)</span>
                 </div>
@@ -1174,4 +1174,77 @@ function toggleRemediation() {
         content.classList.toggle('collapsed');
         icon.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
     }
+}
+
+// Initialize tooltips with smart positioning
+function initTooltips() {
+    let tooltipEl = null;
+
+    document.addEventListener('mouseover', (e) => {
+        const target = e.target.closest('.has-tooltip');
+        if (!target) return;
+
+        const text = target.getAttribute('title');
+        if (!text) return;
+
+        // Store and remove title to prevent default tooltip
+        target.setAttribute('data-tooltip', text);
+        target.removeAttribute('title');
+
+        // Create tooltip element
+        tooltipEl = document.createElement('div');
+        tooltipEl.className = 'tooltip-popup';
+        tooltipEl.textContent = text;
+        document.body.appendChild(tooltipEl);
+
+        // Position tooltip
+        const rect = target.getBoundingClientRect();
+        const tooltipRect = tooltipEl.getBoundingClientRect();
+
+        let top, left;
+        const padding = 8;
+
+        // Check if there's room above
+        if (rect.top > tooltipRect.height + padding + 12) {
+            // Show above
+            top = rect.top - tooltipRect.height - padding;
+            tooltipEl.classList.add('above');
+        } else {
+            // Show below
+            top = rect.bottom + padding;
+            tooltipEl.classList.add('below');
+        }
+
+        // Center horizontally, but keep within viewport
+        left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        left = Math.max(padding, Math.min(left, window.innerWidth - tooltipRect.width - padding));
+
+        tooltipEl.style.top = `${top}px`;
+        tooltipEl.style.left = `${left}px`;
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const target = e.target.closest('.has-tooltip');
+        if (!target) return;
+
+        // Restore title
+        const text = target.getAttribute('data-tooltip');
+        if (text) {
+            target.setAttribute('title', text);
+            target.removeAttribute('data-tooltip');
+        }
+
+        // Remove tooltip
+        if (tooltipEl) {
+            tooltipEl.remove();
+            tooltipEl = null;
+        }
+    });
+}
+
+// Initialize tooltips when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTooltips);
+} else {
+    initTooltips();
 }

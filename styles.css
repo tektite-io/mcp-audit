@@ -506,6 +506,12 @@ tr:hover {
     white-space: nowrap;
 }
 
+.risk-flag.critical {
+    background: #fee2e2;
+    color: #991b1b;
+    font-weight: 600;
+}
+
 .risk-flag.high {
     background: #fee2e2;
     color: #991b1b;
@@ -519,6 +525,11 @@ tr:hover {
 .risk-flag.low {
     background: #e0e7ff;
     color: #3730a3;
+}
+
+.risk-flag.unknown {
+    background: #f1f5f9;
+    color: #64748b;
 }
 
 /* Badges */
@@ -817,23 +828,15 @@ footer a {
 .finding-item {
     border-radius: var(--radius);
     padding: 1rem;
-    margin-bottom: 1rem;
-    border-left: 4px solid var(--border);
+    margin-bottom: 0.75rem;
+    background: var(--background);
+    border: 1px solid var(--border);
 }
 
-.finding-item.danger {
-    background: #fef2f2;
-    border-left-color: var(--danger);
-}
-
-.finding-item.warning {
-    background: #fffbeb;
-    border-left-color: var(--warning);
-}
-
+.finding-item.danger,
+.finding-item.warning,
 .finding-item.info {
-    background: #eff6ff;
-    border-left-color: var(--primary);
+    background: var(--background);
 }
 
 .finding-header {
@@ -875,23 +878,44 @@ footer a {
 .has-tooltip {
     cursor: help;
     position: relative;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
 }
 
-.has-tooltip:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+/* Tooltip popup - use JavaScript for positioning */
+.tooltip-popup {
+    position: fixed;
     background: var(--text);
     color: white;
     padding: 0.5rem 0.75rem;
     border-radius: var(--radius);
     font-size: 0.75rem;
-    white-space: pre-wrap;
+    line-height: 1.4;
     max-width: 300px;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    pointer-events: none;
+}
+
+.tooltip-popup::before {
+    content: '';
+    position: absolute;
+    border: 6px solid transparent;
+}
+
+.tooltip-popup.above::before {
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-top-color: var(--text);
+}
+
+.tooltip-popup.below::before {
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-bottom-color: var(--text);
 }
 
 @media (max-width: 480px) {

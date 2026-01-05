@@ -1,13 +1,16 @@
 #!/bin/bash
 
 # MCP Audit - Deploy Script
-# Deploys webapp changes to GitHub Pages
+# Deploys webapp changes to GitHub Pages (Production)
 #
 # Usage:
 #   ./deploy.sh "Your commit message"
+#   ./deploy.sh --preview     # Show what would be deployed without deploying
 #
-# Example:
-#   ./deploy.sh "Fix table layout bug"
+# Workflow:
+#   1. Test locally: ./scripts/dev-server.sh
+#   2. Review changes: ./deploy.sh --preview
+#   3. Deploy to prod: ./deploy.sh "Your commit message"
 
 set -e
 
@@ -15,19 +18,58 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
 REPO="apisec-inc/mcp-audit"
-WEBAPP_DIR="$(dirname "$0")/webapp"
+SCRIPT_DIR="$(dirname "$0")"
 TEMP_DIR="/tmp/mcp-audit-deploy-$$"
+
+# Files to deploy (from root, since webapp files are now at root)
+DEPLOY_FILES=(
+    "index.html"
+    "app.js"
+    "styles.css"
+    "getting-started.html"
+    "mcp-audit-cli.zip"
+)
+
+# Preview mode
+if [ "$1" == "--preview" ]; then
+    echo -e "${BLUE}=== Deployment Preview ===${NC}"
+    echo ""
+    echo "Files that would be deployed to production:"
+    echo ""
+    for file in "${DEPLOY_FILES[@]}"; do
+        if [ -f "$SCRIPT_DIR/$file" ]; then
+            size=$(ls -lh "$SCRIPT_DIR/$file" | awk '{print $5}')
+            modified=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$SCRIPT_DIR/$file" 2>/dev/null || stat -c "%y" "$SCRIPT_DIR/$file" 2>/dev/null | cut -d'.' -f1)
+            echo -e "  ${GREEN}✓${NC} $file ($size, modified: $modified)"
+        else
+            echo -e "  ${YELLOW}○${NC} $file (not found, will skip)"
+        fi
+    done
+    echo ""
+    echo "Target: https://apisec-inc.github.io/mcp-audit/"
+    echo ""
+    echo -e "${YELLOW}To deploy, run:${NC}"
+    echo "  ./deploy.sh \"Your commit message\""
+    exit 0
+fi
 
 # Check for commit message
 if [ -z "$1" ]; then
     echo -e "${RED}Error: Please provide a commit message${NC}"
     echo ""
-    echo "Usage: ./deploy.sh \"Your commit message\""
-    echo "Example: ./deploy.sh \"Fix table layout bug\""
+    echo "Usage:"
+    echo "  ./deploy.sh \"Your commit message\"   # Deploy to production"
+    echo "  ./deploy.sh --preview                # Preview what would be deployed"
+    echo ""
+    echo "Recommended workflow:"
+    echo "  1. Test locally:    ./scripts/dev-server.sh"
+    echo "  2. Preview changes: ./deploy.sh --preview"
+    echo "  3. Deploy to prod:  ./deploy.sh \"Your commit message\""
     exit 1
 fi
 
@@ -46,7 +88,27 @@ if [ -z "$GITHUB_TOKEN" ]; then
     fi
 fi
 
-echo -e "${GREEN}=== MCP Audit Deployment ===${NC}"
+echo -e "${GREEN}=== MCP Audit - Production Deployment ===${NC}"
+echo ""
+
+# Show what will be deployed
+echo -e "${BLUE}Files to deploy:${NC}"
+for file in "${DEPLOY_FILES[@]}"; do
+    if [ -f "$SCRIPT_DIR/$file" ]; then
+        echo -e "  ${GREEN}✓${NC} $file"
+    fi
+done
+echo ""
+
+# Confirmation
+echo -e "${YELLOW}This will deploy to PRODUCTION:${NC}"
+echo "  https://apisec-inc.github.io/mcp-audit/"
+echo ""
+read -p "Continue? (y/N): " confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Deployment cancelled.${NC}"
+    exit 0
+fi
 echo ""
 
 # Step 1: Clone the repo
@@ -55,15 +117,12 @@ git clone --quiet "https://${GITHUB_TOKEN}@github.com/${REPO}.git" "$TEMP_DIR"
 
 # Step 2: Copy webapp files
 echo -e "${YELLOW}[2/4] Copying updated files...${NC}"
-cp "$WEBAPP_DIR/index.html" "$TEMP_DIR/"
-cp "$WEBAPP_DIR/app.js" "$TEMP_DIR/"
-cp "$WEBAPP_DIR/styles.css" "$TEMP_DIR/"
-if [ -f "$WEBAPP_DIR/getting-started.html" ]; then
-    cp "$WEBAPP_DIR/getting-started.html" "$TEMP_DIR/"
-fi
-if [ -f "$WEBAPP_DIR/mcp-audit-cli.zip" ]; then
-    cp "$WEBAPP_DIR/mcp-audit-cli.zip" "$TEMP_DIR/"
-fi
+for file in "${DEPLOY_FILES[@]}"; do
+    if [ -f "$SCRIPT_DIR/$file" ]; then
+        cp "$SCRIPT_DIR/$file" "$TEMP_DIR/"
+        echo "  Copied: $file"
+    fi
+done
 
 # Step 3: Commit and push
 echo -e "${YELLOW}[3/4] Committing changes...${NC}"
@@ -92,5 +151,5 @@ echo ""
 echo "Your changes will be live in 1-2 minutes at:"
 echo -e "${GREEN}https://apisec-inc.github.io/mcp-audit/${NC}"
 echo ""
-echo "View the repo at:"
-echo "https://github.com/${REPO}"
+echo "View deployment at:"
+echo "https://github.com/${REPO}/actions"
