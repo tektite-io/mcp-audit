@@ -95,13 +95,13 @@ SECRET_PATTERNS = {
 
     # OpenAI
     "openai_key": {
-        "pattern": r"sk-[0-9a-zA-Z]{48}",
+        "pattern": r"sk-[0-9a-zA-Z]{20,}",
         "description": "OpenAI API Key",
         "severity": "high",
         "rotation_url": "https://platform.openai.com/api-keys"
     },
     "openai_project_key": {
-        "pattern": r"sk-proj-[0-9a-zA-Z_-]{40,}",
+        "pattern": r"sk-proj-[0-9a-zA-Z_-]{20,}",
         "description": "OpenAI Project API Key",
         "severity": "high",
         "rotation_url": "https://platform.openai.com/api-keys"

@@ -401,6 +401,71 @@ def _print_remediation(results: list[ScanResult]):
         console.print()
 
 
+def _get_secret_remediation(secret: dict) -> list[str]:
+    """Get provider-specific remediation steps for a secret type"""
+    secret_type = secret.get("type", "")
+    url = secret.get("rotation_url")
+
+    steps = []
+
+    if secret_type in ("github_pat", "github_oauth", "github_app"):
+        steps.append(f"Go to {url} and delete this token")
+        steps.append("Create a new token with minimum required scopes")
+        steps.append("Update GITHUB_TOKEN in your MCP config")
+    elif secret_type == "slack_token":
+        steps.append(f"Go to {url} and regenerate the bot token")
+        steps.append("Update SLACK_BOT_TOKEN in your MCP config")
+    elif secret_type in ("openai_key", "openai_project_key"):
+        steps.append(f"Go to {url} and revoke this key")
+        steps.append("Create a new API key")
+        steps.append("Update OPENAI_API_KEY in your MCP config")
+    elif secret_type == "anthropic_key":
+        steps.append(f"Go to {url} and delete this key")
+        steps.append("Create a new API key")
+        steps.append("Update ANTHROPIC_API_KEY in your MCP config")
+    elif secret_type in ("aws_access_key", "aws_secret_key"):
+        steps.append(f"Go to {url} and deactivate this access key")
+        steps.append("Create new access key pair")
+        steps.append("Update AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY")
+    elif secret_type == "stripe_live":
+        steps.append(f"[bold red]CRITICAL: This is a LIVE Stripe key![/bold red]")
+        steps.append(f"Go to {url} and roll the secret key immediately")
+        steps.append("Update your MCP config with the new key")
+    elif secret_type in ("postgres_conn", "mysql_conn", "mongodb_conn", "redis_conn"):
+        steps.append("Change database password in your database admin console")
+        steps.append("Update connection string in MCP config with new password")
+        steps.append("Review database access logs for unauthorized access")
+    elif secret_type == "private_key":
+        steps.append("Generate a new key pair")
+        steps.append("Update systems using the corresponding public key")
+        steps.append("Revoke certificates associated with old key")
+    elif secret_type == "sendgrid_key":
+        steps.append(f"Go to {url} and delete this key")
+        steps.append("Create new API key with minimum permissions")
+    elif secret_type == "discord_token":
+        steps.append(f"Go to {url} and regenerate the bot token")
+        steps.append("Update your MCP config with the new token")
+    elif secret_type == "npm_token":
+        steps.append(f"Go to {url} and delete this token")
+        steps.append("Create new token with appropriate permissions")
+    elif secret_type == "google_api_key":
+        steps.append(f"Go to {url}")
+        steps.append("Delete compromised key and create new one with API restrictions")
+    else:
+        # Generic
+        if url:
+            steps.append(f"Rotate credential at: {url}")
+        else:
+            steps.append("Rotate this credential through your provider's console")
+        steps.append("Update your MCP configuration with the new value")
+
+    # Common final steps
+    steps.append("Remove hardcoded secret from config (use env vars instead)")
+    steps.append("If in Git: scrub history with BFG or git filter-branch")
+
+    return steps
+
+
 def _print_secrets_alert(secrets: list):
     """Print prominent secrets alert banner"""
     # Count by severity
@@ -430,8 +495,12 @@ def _print_secrets_alert(secrets: list):
         console.print(f"[{severity_styled}] {s.get('description', 'Unknown secret')}")
         console.print(f"  [dim]Location:[/dim] {s.get('mcp_name', 'unknown')} → env.{s.get('env_key', 'unknown')}")
         console.print(f"  [dim]Value:[/dim] {s.get('value_masked', '****')} ({s.get('value_length', 0)} chars)")
-        if s.get("rotation_url"):
-            console.print(f"  [dim]Rotate:[/dim] {s.get('rotation_url')}")
+
+        # Provider-specific remediation
+        remediation_steps = _get_secret_remediation(s)
+        console.print(f"  [dim]Remediation:[/dim]")
+        for i, step in enumerate(remediation_steps, 1):
+            console.print(f"    {i}. {step}")
         console.print()
 
     console.print("[bold red]" + "─" * 60 + "[/bold red]")
@@ -471,8 +540,12 @@ def _print_secrets_detail(secrets: list):
         console.print(f"[{severity_styled}] {s.get('description', 'Unknown secret')}")
         console.print(f"  Location: {s.get('mcp_name', 'unknown')} → env.{s.get('env_key', 'unknown')}")
         console.print(f"  Value: {s.get('value_masked', '****')} ({s.get('value_length', 0)} chars)")
-        if s.get("rotation_url"):
-            console.print(f"  Rotate: {s.get('rotation_url')}")
+
+        # Provider-specific remediation
+        remediation_steps = _get_secret_remediation(s)
+        console.print(f"  Remediation:")
+        for i, step in enumerate(remediation_steps, 1):
+            console.print(f"    {i}. {step}")
         console.print()
 
     console.print("─" * 60)
