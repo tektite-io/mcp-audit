@@ -1,0 +1,18 @@
+# Permissive Security Policy
+# Use this for development environments
+
+# Allow most sources
+allowed_sources:
+  - "@anthropic/*"
+  - "@modelcontextprotocol/*"
+  - "@openai/*"
+  - "mcp-server-*"
+  - "*"
+
+# Only deny shell access
+denied_capabilities:
+  - shell-access
+
+# Require review for unverified sources
+require_review:
+  - unverified-source

@@ -1,0 +1,24 @@
+{
+  "machine_id": "dev-machine-001",
+  "collected_at": "2024-01-15T10:30:00Z",
+  "mcps": [
+    {
+      "name": "filesystem",
+      "found_in": "Claude Desktop",
+      "config_path": "/home/user/.config/claude_desktop_config.json",
+      "config": {
+        "command": "npx",
+        "args": ["@anthropic/mcp-server-filesystem", "/home/user"]
+      }
+    },
+    {
+      "name": "github",
+      "found_in": "Cursor",
+      "config_path": "/home/user/.cursor/mcp.json",
+      "config": {
+        "command": "npx",
+        "args": ["@modelcontextprotocol/server-github"]
+      }
+    }
+  ]
+}

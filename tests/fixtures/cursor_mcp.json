@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-postgres"],
+      "env": {
+        "POSTGRES_URL": "postgresql://user:pass@localhost/db"
+      }
+    },
+    "shell-tools": {
+      "command": "uvx",
+      "args": ["mcp-shell-tools"]
+    }
+  }
+}

@@ -1,0 +1,122 @@
+# MCP Audit GitHub Action
+# Use this action in any repository to scan for MCP configurations
+
+name: 'MCP Audit'
+description: 'Scan repository for Model Context Protocol (MCP) configurations'
+author: 'APIsec'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to scan (defaults to repository root)'
+    required: false
+    default: '.'
+  fail_on_risk:
+    description: 'Fail if MCPs with this risk level or higher are found (none, low, medium, high)'
+    required: false
+    default: 'none'
+  policy_file:
+    description: 'Path to policy file for validation'
+    required: false
+    default: ''
+  output_format:
+    description: 'Output format (json, markdown, table)'
+    required: false
+    default: 'json'
+
+outputs:
+  total_mcps:
+    description: 'Total number of MCPs found'
+    value: ${{ steps.scan.outputs.total_mcps }}
+  with_risks:
+    description: 'Number of MCPs with risk flags'
+    value: ${{ steps.scan.outputs.with_risks }}
+  high_risks:
+    description: 'Number of high-risk MCPs'
+    value: ${{ steps.scan.outputs.high_risks }}
+  results_file:
+    description: 'Path to results JSON file'
+    value: ${{ steps.scan.outputs.results_file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install MCP Audit
+      shell: bash
+      run: |
+        pip install typer rich
+
+    - name: Copy MCP Audit
+      shell: bash
+      run: |
+        # Clone mcp-audit if not already part of the repo
+        if [ ! -d ".mcp-audit" ]; then
+          git clone --depth 1 https://github.com/apisec/mcp-audit.git .mcp-audit 2>/dev/null || true
+        fi
+
+    - name: Run Scan
+      id: scan
+      shell: bash
+      run: |
+        RESULTS_FILE="${{ runner.temp }}/mcp-results.json"
+
+        # Run scan
+        if [ -d ".mcp-audit" ]; then
+          cd .mcp-audit && pip install -e . && cd ..
+        fi
+
+        mcp-audit scan --path "${{ inputs.path }}" --format json --output "$RESULTS_FILE" || true
+
+        if [ -f "$RESULTS_FILE" ]; then
+          echo "results_file=$RESULTS_FILE" >> $GITHUB_OUTPUT
+
+          TOTAL=$(jq '.total_mcps // 0' "$RESULTS_FILE")
+          WITH_RISKS=$(jq '[.mcps[] | select(.risk_flags | length > 0)] | length' "$RESULTS_FILE" 2>/dev/null || echo 0)
+          HIGH_RISKS=$(jq '[.mcps[] | select(.risk_flags[] | contains("shell-access") or contains("unverified-source"))] | length' "$RESULTS_FILE" 2>/dev/null || echo 0)
+
+          echo "total_mcps=$TOTAL" >> $GITHUB_OUTPUT
+          echo "with_risks=$WITH_RISKS" >> $GITHUB_OUTPUT
+          echo "high_risks=$HIGH_RISKS" >> $GITHUB_OUTPUT
+        else
+          echo "total_mcps=0" >> $GITHUB_OUTPUT
+          echo "with_risks=0" >> $GITHUB_OUTPUT
+          echo "high_risks=0" >> $GITHUB_OUTPUT
+          echo "results_file=" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Validate Policy
+      if: inputs.policy_file != ''
+      shell: bash
+      run: |
+        if [ -f "${{ inputs.policy_file }}" ] && [ -f "${{ steps.scan.outputs.results_file }}" ]; then
+          mcp-audit policy --policy "${{ inputs.policy_file }}" --input "${{ steps.scan.outputs.results_file }}" || true
+        fi
+
+    - name: Check Risk Level
+      shell: bash
+      run: |
+        FAIL_ON="${{ inputs.fail_on_risk }}"
+        HIGH_RISKS="${{ steps.scan.outputs.high_risks }}"
+        WITH_RISKS="${{ steps.scan.outputs.with_risks }}"
+        TOTAL="${{ steps.scan.outputs.total_mcps }}"
+
+        if [ "$FAIL_ON" == "high" ] && [ "$HIGH_RISKS" != "0" ]; then
+          echo "::error::Found $HIGH_RISKS high-risk MCP(s)"
+          exit 1
+        elif [ "$FAIL_ON" == "medium" ] && [ "$WITH_RISKS" != "0" ]; then
+          echo "::error::Found $WITH_RISKS MCP(s) with risk flags"
+          exit 1
+        elif [ "$FAIL_ON" == "low" ] && [ "$TOTAL" != "0" ]; then
+          echo "::error::Found $TOTAL MCP(s)"
+          exit 1
+        fi
+
+        echo "MCP Audit completed successfully"

@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["@anthropic/mcp-server-filesystem", "/home/user/documents"]
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-test-token"
+      }
+    },
+    "custom-tool": {
+      "command": "./local/my-mcp-server.py",
+      "args": []
+    }
+  }
+}

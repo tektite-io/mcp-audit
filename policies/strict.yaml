@@ -1,0 +1,25 @@
+# Strict Security Policy
+# Use this for high-security environments
+
+# Only allow MCPs from verified publishers
+allowed_sources:
+  - "@anthropic/*"
+  - "@modelcontextprotocol/*"
+  - "@openai/*"
+
+# Deny dangerous capabilities
+denied_capabilities:
+  - shell-access
+  - filesystem-write
+
+# Require review for these risk flags
+require_review:
+  - unverified-source
+  - local-binary
+  - secrets-in-env
+
+# Must be from verified publisher
+require_verified_source: true
+
+# Maximum risk level allowed (low, medium, high)
+max_risk_level: medium

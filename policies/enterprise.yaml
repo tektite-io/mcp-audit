@@ -1,0 +1,26 @@
+# Enterprise Security Policy
+# Use this for corporate environments
+
+# Only allow verified publishers plus internal packages
+allowed_sources:
+  - "@anthropic/*"
+  - "@modelcontextprotocol/*"
+  - "@openai/*"
+  - "@your-company/*"
+
+# Deny shell access
+denied_capabilities:
+  - shell-access
+
+# Require review for these
+require_review:
+  - database-access
+  - filesystem-access
+  - secrets-in-env
+  - unverified-source
+
+# Require verified source
+require_verified_source: false
+
+# Maximum risk level allowed
+max_risk_level: high
