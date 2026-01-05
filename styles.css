@@ -1041,6 +1041,26 @@ footer a {
     font-weight: 600;
 }
 
+.remediation-steps {
+    margin: 0.5rem 0 0 1.25rem;
+    padding: 0;
+    font-size: 0.8125rem;
+}
+
+.remediation-steps li {
+    margin: 0.25rem 0;
+    color: var(--text-secondary);
+}
+
+.remediation-steps li:first-child {
+    color: var(--text);
+}
+
+.remediation-steps a {
+    color: var(--danger);
+    font-weight: 600;
+}
+
 @media (max-width: 480px) {
     .source-tiles {
         grid-template-columns: repeat(2, 1fr);

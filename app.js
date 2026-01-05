@@ -1385,8 +1385,8 @@ function displaySecretsAlert(secrets) {
     const secretsHtml = sortedSecrets.map(s => {
         const severityClass = s.severity === 'critical' ? 'danger' : (s.severity === 'high' ? 'warning' : 'info');
         const rotateLink = s.rotation_url
-            ? `<a href="${escapeHtml(s.rotation_url)}" target="_blank" class="rotate-link">Rotate Now</a>`
-            : '<span class="text-muted">Manual rotation</span>';
+            ? `<a href="${escapeHtml(s.rotation_url)}" target="_blank" class="rotate-link">1. Rotate credential</a>`
+            : '<span class="text-muted">1. Rotate credential manually</span>';
 
         return `
             <div class="secret-item ${severityClass}">
@@ -1397,7 +1397,13 @@ function displaySecretsAlert(secrets) {
                 <div class="secret-details">
                     <p><strong>Location:</strong> ${escapeHtml(s.mcp_name)} → <code>${escapeHtml(s.env_key)}</code></p>
                     <p><strong>Value:</strong> <code>${escapeHtml(s.value_masked)}</code> (${s.value_length} chars)</p>
-                    <p><strong>Action:</strong> ${rotateLink}</p>
+                    <p><strong>Remediation:</strong></p>
+                    <ol class="remediation-steps">
+                        <li>${rotateLink}</li>
+                        <li>Remove from config file</li>
+                        <li>Scrub from Git history (use BFG or git filter-branch)</li>
+                        <li>Use environment variables or secrets manager</li>
+                    </ol>
                 </div>
             </div>
         `;
