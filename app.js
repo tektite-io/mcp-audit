@@ -977,13 +977,23 @@ function createMcpEntry(name, config, repo, filePath, sourceType) {
     let type = 'unknown';
 
     if (command === 'npx' && args.length > 0) {
-        source = args[0];
+        // Skip -y flag if present and get the actual package name
+        let pkgIndex = 0;
+        while (pkgIndex < args.length && args[pkgIndex].startsWith('-')) {
+            pkgIndex++;
+        }
+        source = pkgIndex < args.length ? args[pkgIndex] : args[0];
         type = 'npm';
     } else if (command === 'node' && args.length > 0) {
         source = args[0];
         type = 'node';
     } else if (['python', 'python3', 'uvx', 'uv'].includes(command)) {
-        source = args.length > 0 ? args[0] : command;
+        // Skip flags for python commands too
+        let pkgIndex = 0;
+        while (pkgIndex < args.length && args[pkgIndex].startsWith('-')) {
+            pkgIndex++;
+        }
+        source = pkgIndex < args.length ? args[pkgIndex] : command;
         type = 'python';
     } else if (command === 'docker') {
         type = 'docker';
@@ -1013,6 +1023,8 @@ function createMcpEntry(name, config, repo, filePath, sourceType) {
         verified: registryMatch?.verified || false,
         description: registryMatch?.description || generateDescription(name, source, config),
         heuristicRisk: heuristic,
+        // Store raw config for secrets detection
+        rawConfig: config,
     };
 }
 
