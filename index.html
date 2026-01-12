@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>APIsec MCP Discovery and Audit</title>
-    <link rel="stylesheet" href="styles.css?v=19">
+    <link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body>
     <div class="container">
@@ -12,6 +12,7 @@
         <header>
             <h1>APIsec MCP Discovery and Audit</h1>
             <p class="subtitle">Discover and audit Model Context Protocol servers across your organization</p>
+            <p class="header-link"><a href="getting-started.html">Getting Started Guide</a></p>
         </header>
 
         <!-- Main Tabs -->
@@ -173,6 +174,38 @@
                             <button id="export-csv-btn" class="btn secondary">Export CSV</button>
                             <button id="export-md-btn" class="btn secondary">Export Markdown</button>
                             <button id="scan-again-btn" class="btn outline">Scan Again</button>
+                        </div>
+
+                        <!-- Lead Capture / PDF Report Section -->
+                        <div id="report-section" class="report-section">
+                            <div class="report-header">
+                                <span class="report-icon">📄</span>
+                                <h3>Get a PDF Report</h3>
+                            </div>
+                            <p class="report-description">Receive a professional report to share with your security team.</p>
+
+                            <div class="report-options">
+                                <div class="email-capture">
+                                    <input type="email" id="report-email" placeholder="Enter your email" class="email-input">
+                                    <button id="send-report-btn" class="btn primary">Send Report</button>
+                                </div>
+                                <div class="report-status" id="report-status"></div>
+                            </div>
+
+                            <div class="report-divider">
+                                <span>or download directly</span>
+                            </div>
+
+                            <div class="download-options">
+                                <button id="download-pdf-btn" class="btn secondary">
+                                    <span class="btn-icon">📥</span> Download PDF
+                                </button>
+                            </div>
+
+                            <p class="privacy-note">
+                                <span class="privacy-icon">🔒</span>
+                                No secrets are transmitted. Only scan summary data is sent.
+                            </p>
                         </div>
                     </div>
 
@@ -341,6 +374,8 @@
         </footer>
     </div>
 
-    <script src="app.js?v=19"></script>
+    <!-- html2pdf.js for client-side PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="app.js?v=21"></script>
 </body>
 </html>
