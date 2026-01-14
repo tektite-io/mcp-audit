@@ -2,6 +2,26 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generatePDFReport, ScanSummary } from '../lib/pdf';
 import { sendReportEmail } from '../lib/email';
 
+// Google Sheets Analytics endpoint
+const ANALYTICS_URL = 'https://script.google.com/macros/s/AKfycbxJ9-VwHe4455XkRElauSC8pWx65q-1OgKWQJNZnafBkfFjbvmOM6qvp07RMwUm0Qml/exec';
+
+// Log to Google Sheets for lead capture
+async function logToSheets(data: Record<string, string | number>): Promise<void> {
+  try {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(data)) {
+      params.append(key, String(value));
+    }
+    await fetch(`${ANALYTICS_URL}?${params.toString()}`, {
+      method: 'GET',
+      mode: 'no-cors',
+    });
+  } catch (error) {
+    // Don't fail the request if analytics fails
+    console.error('Analytics logging failed:', error);
+  }
+}
+
 // Validate email format
 function isValidEmail(email: string): boolean {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -103,15 +123,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`Report sent successfully to ${email}`);
 
-    // Log for analytics (no PII stored server-side)
-    console.log(JSON.stringify({
+    // Log to Google Sheets for lead capture
+    await logToSheets({
       event: 'report_sent',
+      email: email,
       source: source || 'unknown',
       scan_type: scanType,
       mcps: validatedSummary.total_mcps,
       secrets: validatedSummary.secrets_count,
-      timestamp: reportTimestamp,
-    }));
+      apis: validatedSummary.apis_count,
+      models: validatedSummary.models_count,
+    });
 
     return res.status(200).json({
       success: true,

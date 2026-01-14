@@ -30,6 +30,8 @@ function doGet(e) {
       logScanError(ss, timestamp, params);
     } else if (event === 'export') {
       logExport(ss, timestamp, params);
+    } else if (event === 'report_sent') {
+      logReportSent(ss, timestamp, params);
     } else {
       logGeneralEvent(ss, timestamp, params);
     }
@@ -130,6 +132,28 @@ function logExport(ss, timestamp, params) {
     timestamp,
     params.export_format || '',
     parseInt(params.mcps_found) || 0
+  ]);
+}
+
+// ============ Email Reports (Lead Capture) ============
+function logReportSent(ss, timestamp, params) {
+  let sheet = ss.getSheetByName('Email Reports');
+
+  if (!sheet) {
+    sheet = ss.insertSheet('Email Reports');
+    sheet.appendRow(['Timestamp', 'Email', 'Source', 'Scan Type', 'MCPs', 'Secrets', 'APIs', 'Models']);
+    sheet.getRange(1, 1, 1, 8).setFontWeight('bold');
+  }
+
+  sheet.appendRow([
+    timestamp,
+    params.email || '',
+    params.source || '',
+    params.scan_type || '',
+    parseInt(params.mcps) || 0,
+    parseInt(params.secrets) || 0,
+    parseInt(params.apis) || 0,
+    parseInt(params.models) || 0
   ]);
 }
 
