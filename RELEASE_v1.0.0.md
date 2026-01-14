@@ -121,12 +121,12 @@ mcp-audit scan --path ./project     # Specific directory
 Access the web-based scanner at: **https://apisec-inc.github.io/mcp-audit/**
 
 Features:
-- Drag-and-drop config file scanning
-- Scan Claude Desktop configs directly
-- Visual risk assessment dashboard
-- Secrets, APIs, and Models inventory
-- One-click email report delivery
-- AI-BOM export
+- GitHub repository scanning (OAuth or Personal Access Token)
+- Scan entire organizations for MCP configurations
+- Secrets, APIs, and AI Models inventory
+- One-click email PDF report delivery
+- AI-BOM export (CycloneDX 1.6)
+- JSON, CSV, Markdown export formats
 
 ---
 
