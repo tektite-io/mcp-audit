@@ -134,6 +134,16 @@ mcp-audit scan --verbose          # Detailed output
 mcp-audit scan --path ./project   # Specific directory
 ```
 
+### Export Options
+
+```bash
+mcp-audit scan --format json -o report.json       # JSON output
+mcp-audit scan --format csv -o report.csv         # CSV output
+mcp-audit scan --format markdown -o report.md     # Markdown output
+mcp-audit scan --format cyclonedx -o ai-bom.json  # CycloneDX 1.6 AI-BOM
+mcp-audit scan --email security@company.com       # PDF report via email
+```
+
 ### Registry Commands
 
 ```bash
