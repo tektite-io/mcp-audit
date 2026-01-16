@@ -201,7 +201,7 @@ This is intentional - security tools should minimize their own attack surface.
 
 ### If a vulnerability is found in this tool:
 
-1. Report to security@apisec.ai (or create GitHub security advisory)
+1. Report to rajaram@apisec.ai (or create GitHub security advisory)
 2. Do not disclose publicly until patch is available
 3. We will respond within 48 hours
 4. Patches will be released as new versions

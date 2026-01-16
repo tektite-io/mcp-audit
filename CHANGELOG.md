@@ -267,4 +267,4 @@ Refresh https://apisec-inc.github.io/mcp-audit/
 
 - **Documentation:** https://apisec-inc.github.io/mcp-audit/
 - **GitHub:** https://github.com/apisec-inc/mcp-audit
-- **Security Issues:** security@apisec.ai
+- **Security Issues:** rajaram@apisec.ai

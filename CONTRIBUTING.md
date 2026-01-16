@@ -140,7 +140,7 @@ To add a new MCP server to the known registry:
 
 ## Security Issues
 
-For security vulnerabilities, please email security@apisec.ai instead of opening a public issue.
+For security vulnerabilities, please email rajaram@apisec.ai instead of opening a public issue.
 
 ## Code of Conduct
 
@@ -151,7 +151,7 @@ For security vulnerabilities, please email security@apisec.ai instead of opening
 ## Questions?
 
 - Open a [GitHub Discussion](https://github.com/apisec-inc/mcp-audit/discussions)
-- Email: security@apisec.ai
+- Email: rajaram@apisec.ai
 
 ---
 

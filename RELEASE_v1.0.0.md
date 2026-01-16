@@ -185,7 +185,7 @@ No installation required - visit https://apisec-inc.github.io/mcp-audit/
 - **Web UI:** https://apisec-inc.github.io/mcp-audit/
 - **GitHub:** https://github.com/apisec-inc/mcp-audit
 - **Documentation:** https://github.com/apisec-inc/mcp-audit#readme
-- **Security Issues:** security@apisec.ai
+- **Security Issues:** rajaram@apisec.ai
 
 ---
 
