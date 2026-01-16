@@ -214,12 +214,12 @@ mcp-audit registry lookup "stripe"    # Search registry
 
 ## Installation
 
+### Option 1: Python (pip)
+
 ```bash
-# Clone
+# Clone and install
 git clone https://github.com/apisec-inc/mcp-audit.git
 cd mcp-audit
-
-# Install CLI
 pip install -e .
 
 # Verify
@@ -227,6 +227,19 @@ mcp-audit --help
 ```
 
 Requires Python 3.9+
+
+### Option 2: Docker
+
+```bash
+# Build image
+docker build -t mcp-audit .
+
+# Scan current directory
+docker run -v $(pwd):/scan mcp-audit scan
+
+# Scan with JSON output
+docker run -v $(pwd):/scan mcp-audit scan --format json -o /scan/report.json
+```
 
 ---
 
