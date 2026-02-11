@@ -67,7 +67,9 @@ class TestScanResult:
 
         result = ScanResult.from_dict(data, found_in="Cursor", config_path="/test/path")
 
-        assert "secrets-in-env" in result.risk_flags
+        # Value matches password pattern, so it's detected as an actual secret
+        assert "secrets-detected" in result.risk_flags
+        assert len(result.secrets) > 0
 
     def test_to_dict(self):
         """Test ScanResult serialization"""

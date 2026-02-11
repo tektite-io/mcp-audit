@@ -218,6 +218,158 @@ const RISK_FLAGS = {
     }
 };
 
+// OWASP LLM Top 10 (2025) Definitions
+// Reference: https://genai.owasp.org/llm-top-10/
+const OWASP_LLM_TOP_10 = {
+    "LLM01": {
+        name: "Prompt Injection",
+        description: "Manipulating LLM behavior through crafted prompts via external inputs",
+        mcp_relevance: "MCP discovery provides attack surface visibility - each MCP represents potential prompt injection vectors through tools, APIs, and data sources"
+    },
+    "LLM02": {
+        name: "Sensitive Information Disclosure",
+        description: "Unintended exposure of sensitive data through LLM responses",
+        mcp_relevance: "Secrets detected in MCP configs (API keys, tokens, passwords) can be exposed through agent interactions"
+    },
+    "LLM03": {
+        name: "Supply Chain Vulnerabilities",
+        description: "Risks from third-party components, models, or data",
+        mcp_relevance: "Unknown/unverified MCP sources and MCPs not in known registry represent supply chain risks"
+    },
+    "LLM06": {
+        name: "Excessive Agency",
+        description: "LLM systems granted excessive permissions or autonomy",
+        mcp_relevance: "MCPs with database access, shell access, filesystem access represent excessive agency risks"
+    },
+    "LLM07": {
+        name: "System Prompt Leakage",
+        description: "Exposure of system prompts or sensitive configurations",
+        mcp_relevance: "Credentials in configs that agents can access may leak through system prompts"
+    },
+    "LLM09": {
+        name: "Overreliance",
+        description: "Excessive dependence on LLM outputs without validation",
+        mcp_relevance: "AI model inventory identifies all models in use, giving visibility into AI dependencies"
+    },
+    "LLM10": {
+        name: "Unbounded Consumption",
+        description: "Uncontrolled resource usage leading to DoS or excessive costs",
+        mcp_relevance: "API endpoints and AI models detected provide visibility into potential cost vectors"
+    }
+};
+
+// Map risk flags to OWASP LLM categories
+const RISK_FLAG_TO_OWASP = {
+    "shell-access": ["LLM06"],
+    "filesystem-access": ["LLM06"],
+    "database-access": ["LLM06"],
+    "network-access": ["LLM06"],
+    "secrets-detected": ["LLM02", "LLM07"],
+    "secrets-in-env": ["LLM02", "LLM07"],
+    "unverified-source": ["LLM03"],
+    "local-binary": ["LLM03"]
+};
+
+// Get OWASP LLM coverage from scan results
+function getOwaspCoverage(results) {
+    const coverage = {};
+
+    // LLM01 - Any MCP found = attack surface visibility
+    if (results.length > 0) {
+        coverage["LLM01"] = {
+            name: OWASP_LLM_TOP_10["LLM01"].name,
+            covered: true,
+            evidence: `${results.length} MCP(s) discovered - attack surface mapped`
+        };
+    }
+
+    // Collect all risk flags
+    const allFlags = new Set();
+    for (const r of results) {
+        for (const flag of r.riskFlags || []) {
+            allFlags.add(flag);
+        }
+    }
+
+    // LLM02 - Secrets detected
+    const hasSecrets = results.some(r => r.secrets && r.secrets.length > 0);
+    if (hasSecrets || allFlags.has('secrets-detected')) {
+        const secretCount = results.reduce((sum, r) => sum + (r.secrets?.length || 0), 0);
+        coverage["LLM02"] = {
+            name: OWASP_LLM_TOP_10["LLM02"].name,
+            covered: true,
+            evidence: `${secretCount} secret(s) detected in MCP configs`
+        };
+    }
+
+    // LLM03 - Supply chain (unknown MCPs)
+    const unknownMcps = results.filter(r => !r.isKnown);
+    if (unknownMcps.length > 0 || allFlags.has('unverified-source')) {
+        coverage["LLM03"] = {
+            name: OWASP_LLM_TOP_10["LLM03"].name,
+            covered: true,
+            evidence: `${unknownMcps.length} unknown/unverified MCP source(s)`
+        };
+    }
+
+    // LLM06 - Excessive agency
+    const agencyFlags = ['shell-access', 'filesystem-access', 'database-access', 'network-access'];
+    const foundAgency = agencyFlags.filter(f => allFlags.has(f));
+    if (foundAgency.length > 0) {
+        coverage["LLM06"] = {
+            name: OWASP_LLM_TOP_10["LLM06"].name,
+            covered: true,
+            evidence: `Agency risks: ${foundAgency.join(', ')}`
+        };
+    }
+
+    // LLM07 - System prompt leakage (secrets in env)
+    if (allFlags.has('secrets-in-env') || hasSecrets) {
+        coverage["LLM07"] = {
+            name: OWASP_LLM_TOP_10["LLM07"].name,
+            covered: true,
+            evidence: "Credentials in configs may leak via system prompts"
+        };
+    }
+
+    // LLM09 - Overreliance (AI models)
+    const hasModels = results.some(r => r.model);
+    if (hasModels) {
+        const modelCount = results.filter(r => r.model).length;
+        coverage["LLM09"] = {
+            name: OWASP_LLM_TOP_10["LLM09"].name,
+            covered: true,
+            evidence: `${modelCount} AI model(s) identified for dependency tracking`
+        };
+    }
+
+    // LLM10 - Unbounded consumption (APIs or models)
+    const hasApis = results.some(r => r.apis && r.apis.length > 0);
+    if (hasApis || hasModels) {
+        const apiCount = results.reduce((sum, r) => sum + (r.apis?.length || 0), 0);
+        const modelCount = results.filter(r => r.model).length;
+        const parts = [];
+        if (apiCount) parts.push(`${apiCount} API endpoint(s)`);
+        if (modelCount) parts.push(`${modelCount} AI model(s)`);
+        coverage["LLM10"] = {
+            name: OWASP_LLM_TOP_10["LLM10"].name,
+            covered: true,
+            evidence: `Resource vectors: ${parts.join(', ')}`
+        };
+    }
+
+    return coverage;
+}
+
+// Get OWASP tags for a risk flag
+function getOwaspTagsForFlag(flag) {
+    const owaspIds = RISK_FLAG_TO_OWASP[flag] || [];
+    return owaspIds.map(id => ({
+        id,
+        name: OWASP_LLM_TOP_10[id]?.name || id
+    }));
+}
+
 // Secret detection patterns for exposed credentials
 const SECRET_PATTERNS = {
     // AWS
@@ -1372,6 +1524,93 @@ function displayModelsInventoryAfterTable(models, afterElement) {
     }
 }
 
+// Display OWASP LLM Top 10 coverage after other inventory sections
+function displayOwaspCoverageAfterTable(results, afterElement) {
+    const coverage = getOwaspCoverage(results);
+    const coveredCount = Object.keys(coverage).length;
+    const totalCategories = 7; // LLM01, 02, 03, 06, 07, 09, 10
+
+    if (coveredCount === 0) return;
+
+    // Remove existing if any
+    const existing = document.getElementById('owasp-coverage');
+    if (existing) existing.remove();
+
+    const owaspDiv = document.createElement('div');
+    owaspDiv.id = 'owasp-coverage';
+    owaspDiv.className = 'owasp-coverage';
+
+    // Build coverage items
+    const allCategories = ['LLM01', 'LLM02', 'LLM03', 'LLM06', 'LLM07', 'LLM09', 'LLM10'];
+    let itemsHtml = '';
+    for (const id of allCategories) {
+        const info = coverage[id];
+        if (info) {
+            itemsHtml += `
+                <div class="owasp-item covered">
+                    <div class="owasp-id">${id}</div>
+                    <div class="owasp-name">${escapeHtml(info.name)}</div>
+                    <div class="owasp-evidence">${escapeHtml(info.evidence)}</div>
+                </div>
+            `;
+        } else {
+            const def = OWASP_LLM_TOP_10[id];
+            itemsHtml += `
+                <div class="owasp-item not-covered">
+                    <div class="owasp-id">${id}</div>
+                    <div class="owasp-name">${escapeHtml(def?.name || id)}</div>
+                    <div class="owasp-evidence">Not detected in this scan</div>
+                </div>
+            `;
+        }
+    }
+
+    const coveragePercent = Math.round((coveredCount / totalCategories) * 100);
+
+    owaspDiv.innerHTML = `
+        <div class="owasp-header" onclick="toggleOwaspCoverage()">
+            <div class="owasp-title">
+                <span class="inventory-icon">🛡️</span>
+                <strong>OWASP LLM TOP 10 COVERAGE</strong>
+                <span class="owasp-badge">${coveredCount}/${totalCategories} (${coveragePercent}%)</span>
+            </div>
+            <span class="toggle-icon" id="owasp-toggle-icon">▶</span>
+        </div>
+        <div id="owasp-detail" class="owasp-detail">
+            <div class="owasp-intro">
+                <p>This scan maps findings to the <a href="https://genai.owasp.org/llm-top-10/" target="_blank">OWASP LLM Top 10 (2025)</a> framework for AI security compliance.</p>
+            </div>
+            <div class="owasp-progress">
+                <div class="owasp-progress-bar" style="width: ${coveragePercent}%"></div>
+            </div>
+            <div class="owasp-items">
+                ${itemsHtml}
+            </div>
+        </div>
+    `;
+
+    // Insert after models inventory (or after APIs, or after secrets, or after table)
+    const modelsInventory = document.getElementById('models-inventory');
+    const apisInventory = document.getElementById('apis-inventory');
+    const secretsAlert = document.getElementById('secrets-alert');
+    const insertAfter = modelsInventory || apisInventory || secretsAlert || afterElement;
+    if (insertAfter && insertAfter.parentNode) {
+        insertAfter.parentNode.insertBefore(owaspDiv, insertAfter.nextSibling);
+    }
+}
+
+// Toggle OWASP coverage section
+function toggleOwaspCoverage() {
+    const detail = document.getElementById('owasp-detail');
+    const icon = document.getElementById('owasp-toggle-icon');
+    if (detail) {
+        detail.classList.toggle('expanded');
+        if (icon) {
+            icon.textContent = detail.classList.contains('expanded') ? '▼' : '▶';
+        }
+    }
+}
+
 // Display MCP table for demo mode (matches original displayResults format)
 function displayDemoMcpTable() {
     // Sort results by risk level (critical -> high -> medium -> low -> unknown)
@@ -1390,10 +1629,8 @@ function displayDemoMcpTable() {
         // Get description
         const description = r.description || 'Unknown MCP server';
 
-        // Build risk flags HTML
-        const riskFlagsHtml = (r.riskFlags && r.riskFlags.length > 0)
-            ? r.riskFlags.map(f => `<span class="risk-flag ${getRiskLevel(f)} has-tooltip" title="${escapeHtml(getRiskFlagTooltip(f))}">${f}</span>`).join(' ')
-            : '<span class="text-muted">-</span>';
+        // Build risk flags HTML with OWASP tags
+        const riskFlagsHtml = renderRiskFlags(r.riskFlags);
 
         return `
             <tr>
@@ -2119,7 +2356,7 @@ function displayResults() {
                 </td>
                 <td>${r.isKnown ? '<span class="badge success">Yes</span>' : '<span class="badge danger">No</span>'}</td>
                 <td>${riskIndicator}</td>
-                <td>${r.riskFlags.length > 0 ? r.riskFlags.map(f => `<span class="risk-flag ${getRiskLevel(f)} has-tooltip" title="${escapeHtml(getRiskFlagTooltip(f))}">${f}</span>`).join(' ') : '<span class="text-muted">-</span>'}</td>
+                <td>${renderRiskFlags(r.riskFlags)}</td>
             </tr>
         `;
     }).join('');
@@ -2151,6 +2388,9 @@ function displayResults() {
     if (allModels.length > 0) {
         displayModelsInventoryAfterTable(allModels, tableBanner);
     }
+
+    // Display OWASP LLM Top 10 coverage - insert after models (or after APIs, etc.)
+    displayOwaspCoverageAfterTable(scanResults, tableBanner);
 
     // Display remediation section
     displayRemediationSection(scanResults);
@@ -2185,9 +2425,27 @@ function getRiskLevel(flag) {
 function getRiskFlagTooltip(flag) {
     const flagInfo = RISK_FLAGS[flag];
     if (flagInfo) {
-        return `${flagInfo.explanation}\n\nFix: ${flagInfo.remediation}`;
+        const owaspTags = getOwaspTagsForFlag(flag);
+        const owaspText = owaspTags.length > 0
+            ? `\n\nOWASP LLM: ${owaspTags.map(t => `${t.id} (${t.name})`).join(', ')}`
+            : '';
+        return `${flagInfo.explanation}\n\nFix: ${flagInfo.remediation}${owaspText}`;
     }
     return flag;
+}
+
+// Render risk flags with OWASP tags
+function renderRiskFlags(riskFlags) {
+    if (!riskFlags || riskFlags.length === 0) {
+        return '<span class="text-muted">-</span>';
+    }
+    return riskFlags.map(f => {
+        const owaspTags = getOwaspTagsForFlag(f);
+        const owaspHtml = owaspTags.length > 0
+            ? owaspTags.map(t => `<span class="owasp-tag">${t.id}</span>`).join('')
+            : '';
+        return `<span class="risk-flag ${getRiskLevel(f)} has-tooltip" title="${escapeHtml(getRiskFlagTooltip(f))}">${f}${owaspHtml}</span>`;
+    }).join(' ');
 }
 
 // Get tooltip text for a risk level

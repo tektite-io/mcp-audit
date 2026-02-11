@@ -122,6 +122,9 @@ mcp-audit scan --format json -o report.json
 # AI-BOM (CycloneDX 1.6)
 mcp-audit scan --format cyclonedx -o ai-bom.json
 
+# SARIF (GitHub Security integration)
+mcp-audit scan --format sarif -o results.sarif
+
 # CSV / Markdown
 mcp-audit scan --format csv -o report.csv
 mcp-audit scan --format markdown -o report.md
@@ -140,7 +143,9 @@ mcp-audit scan --email security@company.com
 | **Secrets Detection** | 25+ secret patterns with provider-specific remediation |
 | **API Inventory** | Database, REST, SSE, SaaS, Cloud endpoints |
 | **AI Model Detection** | OpenAI, Anthropic, Google, Meta, Mistral, Ollama |
+| **OWASP LLM Top 10** | Maps findings to OWASP LLM Top 10 (2025) framework |
 | **AI-BOM Export** | CycloneDX 1.6 for supply chain compliance |
+| **SARIF Output** | GitHub Security integration with OWASP tags |
 | **Registry** | 50+ known MCPs with risk classifications |
 
 ## Two Ways to Use
@@ -176,6 +181,7 @@ mcp-audit scan --format json -o report.json       # JSON output
 mcp-audit scan --format csv -o report.csv         # CSV output
 mcp-audit scan --format markdown -o report.md     # Markdown output
 mcp-audit scan --format cyclonedx -o ai-bom.json  # CycloneDX 1.6 AI-BOM
+mcp-audit scan --format sarif -o results.sarif    # SARIF for GitHub Security
 mcp-audit scan --email security@company.com       # PDF report via email
 ```
 

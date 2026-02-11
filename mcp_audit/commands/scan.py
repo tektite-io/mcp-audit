@@ -13,6 +13,12 @@ from mcp_audit.scanners import claude, cursor, vscode, project, windsurf, zed, d
 from mcp_audit.outputs import formatter
 from mcp_audit.models import ScanResult
 from mcp_audit.data.risk_definitions import RISK_FLAGS, get_severity_for_flag, get_risk_flag_info
+from mcp_audit.data.owasp_llm import (
+    get_owasp_llm_for_secret,
+    get_owasp_llm_for_risk_flag,
+    get_scan_owasp_coverage,
+    OWASP_LLM_TOP_10,
+)
 
 app = typer.Typer(help="Scan for MCP configurations")
 console = Console()
@@ -28,7 +34,7 @@ def scan_local(
         None, "--path", "-p", help="Scan a specific directory for project-level MCP configs"
     ),
     format: str = typer.Option(
-        "table", "--format", "-f", help="Output format: table, json, markdown, csv, cyclonedx, cyclonedx-xml"
+        "table", "--format", "-f", help="Output format: table, json, markdown, csv, cyclonedx, cyclonedx-xml, sarif"
     ),
     output: Optional[Path] = typer.Option(
         None, "--output", "-o", help="Write output to file"
@@ -458,6 +464,16 @@ def _print_summary(results: list[ScanResult], trust_results: dict = None, with_r
         if low > 0:
             console.print(f"\n  [red]Alert: {low} MCP(s) have LOW trust scores![/red]")
 
+    # OWASP LLM Top 10 Coverage
+    if results:
+        owasp_coverage = get_scan_owasp_coverage(results)
+        if owasp_coverage:
+            console.print("\n[bold]OWASP LLM Top 10 Coverage[/bold]")
+            console.print("  [dim]Ref: https://genai.owasp.org/llm-top-10/[/dim]")
+            for owasp_id, info in sorted(owasp_coverage.items()):
+                console.print(f"  [cyan]{owasp_id}[/cyan] {info['name']}")
+                console.print(f"       [dim]{info['evidence']}[/dim]")
+
 
 def _truncate(s: str, length: int) -> str:
     """Truncate string with ellipsis"""
@@ -508,6 +524,13 @@ def _print_remediation(results: list[ScanResult]):
         console.print(f"[{severity_styled}] [bold]{flag}[/bold] ({len(mcps)} MCP(s) affected)")
         console.print(f"  [dim]Why:[/dim] {info.get('explanation', 'Unknown')}")
         console.print(f"  [dim]Fix:[/dim] {info.get('remediation', 'Review manually')}")
+
+        # OWASP LLM Top 10 mapping
+        owasp_refs = get_owasp_llm_for_risk_flag(flag)
+        if owasp_refs:
+            owasp_ids = ", ".join(f"{r['id']} ({r['name']})" for r in owasp_refs)
+            console.print(f"  [dim]OWASP LLM:[/dim] [cyan]{owasp_ids}[/cyan]")
+
         console.print(f"  [dim]MCPs:[/dim] {', '.join(mcps)}")
         console.print()
 
@@ -607,6 +630,12 @@ def _print_secrets_alert(secrets: list):
         console.print(f"  [dim]Location:[/dim] {s.get('mcp_name', 'unknown')} → env.{s.get('env_key', 'unknown')}")
         console.print(f"  [dim]Value:[/dim] {s.get('value_masked', '****')} ({s.get('value_length', 0)} chars)")
 
+        # OWASP LLM Top 10 mapping
+        owasp_refs = get_owasp_llm_for_secret(s.get("type", ""))
+        if owasp_refs:
+            owasp_ids = ", ".join(f"{r['id']} ({r['name']})" for r in owasp_refs)
+            console.print(f"  [dim]OWASP LLM:[/dim] [cyan]{owasp_ids}[/cyan]")
+
         # Provider-specific remediation
         remediation_steps = _get_secret_remediation(s)
         console.print(f"  [dim]Remediation:[/dim]")
@@ -651,6 +680,12 @@ def _print_secrets_detail(secrets: list):
         console.print(f"[{severity_styled}] {s.get('description', 'Unknown secret')}")
         console.print(f"  Location: {s.get('mcp_name', 'unknown')} → env.{s.get('env_key', 'unknown')}")
         console.print(f"  Value: {s.get('value_masked', '****')} ({s.get('value_length', 0)} chars)")
+
+        # OWASP LLM Top 10 mapping
+        owasp_refs = get_owasp_llm_for_secret(s.get("type", ""))
+        if owasp_refs:
+            owasp_ids = ", ".join(f"{r['id']} ({r['name']})" for r in owasp_refs)
+            console.print(f"  OWASP LLM: [cyan]{owasp_ids}[/cyan]")
 
         # Provider-specific remediation
         remediation_steps = _get_secret_remediation(s)

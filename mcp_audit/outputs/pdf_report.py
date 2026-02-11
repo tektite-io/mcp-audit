@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import Optional
 import html
 
+from mcp_audit.data.owasp_llm import get_scan_owasp_coverage, OWASP_LLM_TOP_10
+
 
 def generate_pdf(summary: dict, secrets: list, apis: list, results: list, output_path: Path):
     """
@@ -59,6 +61,7 @@ def _generate_html_report(summary: dict, secrets: list, apis: list, results: lis
     secrets_html = _generate_secrets_section(secrets)
     apis_html = _generate_apis_section(apis)
     mcps_html = _generate_mcps_section(results)
+    owasp_html = _generate_owasp_section(results)
     remediation_html = _generate_remediation_section(summary, secrets, results)
 
     # Build immediate actions
@@ -175,7 +178,10 @@ def _generate_html_report(summary: dict, secrets: list, apis: list, results: lis
     <!-- Page 4: MCP Inventory -->
     {mcps_html}
 
-    <!-- Page 5: Remediation -->
+    <!-- Page 5: OWASP LLM Coverage -->
+    {owasp_html}
+
+    <!-- Page 6: Remediation -->
     {remediation_html}
 
     <!-- Footer -->
@@ -352,6 +358,84 @@ def _generate_mcps_section(results: list) -> str:
                     {rows}
                 </tbody>
             </table>
+        </section>
+    </div>
+    """
+
+
+def _generate_owasp_section(results: list) -> str:
+    """Generate HTML for OWASP LLM Top 10 coverage section"""
+    if not results:
+        return ""
+
+    owasp_coverage = get_scan_owasp_coverage(results)
+
+    # All OWASP LLM categories we track
+    all_categories = ["LLM01", "LLM02", "LLM03", "LLM06", "LLM07", "LLM09", "LLM10"]
+
+    rows = ""
+    covered_count = 0
+    for owasp_id in all_categories:
+        info = OWASP_LLM_TOP_10.get(owasp_id, {})
+        name = html.escape(info.get("name", "Unknown"))
+
+        if owasp_id in owasp_coverage:
+            coverage = owasp_coverage[owasp_id]
+            evidence = html.escape(coverage.get("evidence", ""))
+            status = '<span class="owasp-covered">COVERED</span>'
+            covered_count += 1
+        else:
+            evidence = "Not detected in this scan"
+            status = '<span class="owasp-not-covered">Not Covered</span>'
+
+        rows += f"""
+        <tr>
+            <td><strong>{owasp_id}</strong></td>
+            <td>{name}</td>
+            <td>{status}</td>
+            <td>{evidence}</td>
+        </tr>
+        """
+
+    coverage_percent = int((covered_count / len(all_categories)) * 100)
+
+    return f"""
+    <div class="page">
+        <section class="section">
+            <h2>OWASP LLM Top 10 Coverage</h2>
+            <p class="section-intro">
+                This scan maps findings to the <a href="https://genai.owasp.org/llm-top-10/">OWASP LLM Top 10 (2025)</a> framework for AI security.
+            </p>
+
+            <div class="owasp-summary">
+                <div class="owasp-score">
+                    <div class="owasp-score-value">{covered_count}/{len(all_categories)}</div>
+                    <div class="owasp-score-label">Categories Covered</div>
+                </div>
+                <div class="owasp-bar-container">
+                    <div class="owasp-bar" style="width: {coverage_percent}%"></div>
+                </div>
+                <div class="owasp-percent">{coverage_percent}%</div>
+            </div>
+
+            <table class="data-table owasp-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Evidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+
+            <div class="owasp-note">
+                <strong>Note:</strong> OWASP LLM Top 10 coverage indicates which security categories
+                are addressed by the scan findings. High coverage means more comprehensive security visibility.
+            </div>
         </section>
     </div>
     """
@@ -882,6 +966,82 @@ def _get_report_css() -> str:
             padding: 1rem;
             border-radius: 8px;
             text-align: center;
+        }
+
+        /* OWASP Section */
+        .owasp-summary {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+        }
+
+        .owasp-score {
+            text-align: center;
+            padding-right: 1rem;
+            border-right: 1px solid #bae6fd;
+        }
+
+        .owasp-score-value {
+            font-size: 24pt;
+            font-weight: 700;
+            color: #0284c7;
+        }
+
+        .owasp-score-label {
+            font-size: 9pt;
+            color: #0369a1;
+            text-transform: uppercase;
+        }
+
+        .owasp-bar-container {
+            flex: 1;
+            height: 24px;
+            background: #e0f2fe;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .owasp-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
+            border-radius: 12px;
+        }
+
+        .owasp-percent {
+            font-size: 18pt;
+            font-weight: 700;
+            color: #0284c7;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .owasp-table .owasp-covered {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 9pt;
+        }
+
+        .owasp-table .owasp-not-covered {
+            color: #9ca3af;
+            font-size: 9pt;
+        }
+
+        .owasp-note {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            font-size: 10pt;
+            color: #4b5563;
         }
 
         /* Print styles */

@@ -15,6 +15,69 @@ MCP Audit assigns one of four risk levels to each discovered MCP:
 
 ---
 
+## OWASP LLM Top 10 (2025) Mapping
+
+MCP Audit maps findings to the [OWASP LLM Top 10 (2025)](https://genai.owasp.org/llm-top-10/) framework to provide compliance-ready security context.
+
+### Covered Categories
+
+| OWASP ID | Name | MCP Audit Coverage |
+|----------|------|-------------------|
+| **LLM01** | Prompt Injection | Any MCP discovered provides attack surface visibility — each MCP represents potential prompt injection vectors through tools, APIs, and data sources |
+| **LLM02** | Sensitive Information Disclosure | Secrets detected in MCP configs (API keys, tokens, passwords, connection strings) can be exposed through agent interactions |
+| **LLM03** | Supply Chain Vulnerabilities | Unknown/unverified MCP sources and MCPs not in known registry represent supply chain risks |
+| **LLM06** | Excessive Agency | MCPs with database access, shell access, filesystem access, or network access flags represent excessive agency risks |
+| **LLM07** | System Prompt Leakage | Credentials or connection strings in configs that agents can access may leak through system prompts |
+| **LLM09** | Overreliance | AI model inventory identifies all models in use (cloud vs. local), giving visibility into AI dependencies and vendor concentration risk |
+| **LLM10** | Unbounded Consumption | API endpoints and AI models detected provide visibility into potential cost and resource consumption vectors |
+
+### How Mappings Are Triggered
+
+| OWASP ID | Trigger Condition |
+|----------|-------------------|
+| LLM01 | Any MCP found in scan |
+| LLM02 | `secrets-detected` flag or secrets found in configuration |
+| LLM03 | MCP not in known registry OR `unverified-source` flag |
+| LLM06 | `database-access`, `shell-access`, `filesystem-access`, or `network-access` flag |
+| LLM07 | `secrets-in-env` flag or secrets detected |
+| LLM09 | AI model detected in MCP configuration |
+| LLM10 | API endpoints or AI models detected |
+
+### Output Formats with OWASP Data
+
+All output formats include OWASP LLM mappings:
+
+- **CLI**: Shows `OWASP LLM: LLM02 (Sensitive Information Disclosure)` for each finding
+- **JSON**: Includes `owasp_llm` array on findings and `owasp_llm_coverage` summary
+- **SARIF**: Adds `OWASP-LLM-*` tags for GitHub Security integration
+- **Markdown**: Lists OWASP references in findings section
+
+### Example JSON Output
+
+```json
+{
+  "findings": [
+    {
+      "flag": "secrets-detected",
+      "severity": "critical",
+      "owasp_llm": [
+        {"id": "LLM02", "name": "Sensitive Information Disclosure"},
+        {"id": "LLM07", "name": "System Prompt Leakage"}
+      ]
+    }
+  ],
+  "owasp_llm_coverage": {
+    "reference": "https://genai.owasp.org/llm-top-10/",
+    "items": [
+      {"id": "LLM01", "name": "Prompt Injection", "covered": true, "evidence": "5 MCP(s) discovered - attack surface mapped"},
+      {"id": "LLM02", "name": "Sensitive Information Disclosure", "covered": true, "evidence": "3 secret(s) detected in MCP configs"}
+    ]
+  }
+}
+```
+
+---
+
 ## Risk Flags
 
 Risk flags identify specific security-relevant characteristics of an MCP configuration.

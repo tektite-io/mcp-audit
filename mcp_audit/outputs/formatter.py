@@ -8,6 +8,11 @@ from typing import Optional
 
 from mcp_audit.models import ScanResult, CollectedConfig
 from mcp_audit.data.risk_definitions import get_risk_flag_info, get_severity_for_flag
+from mcp_audit.data.owasp_llm import (
+    get_owasp_llm_for_secret,
+    get_owasp_llm_for_risk_flag,
+    get_scan_owasp_coverage,
+)
 
 
 def format_results(results: list[ScanResult], format: str) -> str:
@@ -24,6 +29,9 @@ def format_results(results: list[ScanResult], format: str) -> str:
     elif format == "cyclonedx-xml":
         from mcp_audit.outputs.cyclonedx import generate_cyclonedx_bom
         return generate_cyclonedx_bom(results, format="xml")
+    elif format == "sarif":
+        from mcp_audit.outputs.sarif import generate_sarif
+        return generate_sarif(results)
     else:
         # Table format is handled separately with rich
         return _to_json(results)
@@ -59,6 +67,9 @@ def _to_json(results: list[ScanResult]) -> str:
     # Collect AI models
     models_data = _build_models_summary(results)
 
+    # Get OWASP LLM coverage
+    owasp_coverage = get_scan_owasp_coverage(results)
+
     data = {
         "scan_time": datetime.now().isoformat(),
         "total_mcps": len(results),
@@ -78,6 +89,21 @@ def _to_json(results: list[ScanResult]) -> str:
     if models_data["total"] > 0:
         data["ai_models"] = models_data
 
+    # Add OWASP LLM coverage
+    if owasp_coverage:
+        data["owasp_llm_coverage"] = {
+            "reference": "https://genai.owasp.org/llm-top-10/",
+            "items": [
+                {
+                    "id": owasp_id,
+                    "name": info["name"],
+                    "covered": info["covered"],
+                    "evidence": info["evidence"],
+                }
+                for owasp_id, info in sorted(owasp_coverage.items())
+            ],
+        }
+
     return json.dumps(data, indent=2)
 
 
@@ -88,6 +114,9 @@ def _build_secrets_summary(results: list[ScanResult]) -> dict:
         for s in r.secrets:
             secret_dict = s.to_dict() if hasattr(s, 'to_dict') else s
             secret_dict["source_mcp"] = r.name
+            # Add OWASP LLM mapping
+            owasp_refs = get_owasp_llm_for_secret(secret_dict.get("type", ""))
+            secret_dict["owasp_llm"] = [{"id": ref["id"], "name": ref["name"]} for ref in owasp_refs]
             all_secrets.append(secret_dict)
 
     critical = sum(1 for s in all_secrets if s.get("severity") == "critical")
@@ -167,12 +196,15 @@ def _build_findings(results: list[ScanResult]) -> list[dict]:
     findings = []
     for flag, mcps in flag_to_mcps.items():
         info = get_risk_flag_info(flag)
+        # Add OWASP LLM mapping
+        owasp_refs = get_owasp_llm_for_risk_flag(flag)
         findings.append({
             "flag": flag,
             "severity": get_severity_for_flag(flag),
             "affected_mcps": mcps,
             "explanation": info.get("explanation", ""),
             "remediation": info.get("remediation", ""),
+            "owasp_llm": [{"id": ref["id"], "name": ref["name"]} for ref in owasp_refs],
         })
 
     # Sort by severity
@@ -282,6 +314,11 @@ def _to_markdown(results: list[ScanResult]) -> str:
             lines.append("")
             lines.append(f"**Why:** {finding['explanation']}")
             lines.append("")
+            # Add OWASP LLM references
+            if finding.get("owasp_llm"):
+                owasp_refs = ", ".join(f"{ref['id']} ({ref['name']})" for ref in finding["owasp_llm"])
+                lines.append(f"**OWASP LLM:** {owasp_refs}")
+                lines.append("")
             lines.append(f"**Fix:** {finding['remediation']}")
             lines.append("")
 

@@ -57,7 +57,7 @@ class TestResultsFormatter:
         output = formatter.format_results(sample_results, "csv")
         lines = output.strip().split("\n")
 
-        assert lines[0] == "name,source,found_in,server_type,risk_flags,config_path"
+        assert lines[0] == "name,source,found_in,server_type,risk_flags,secrets_count,secrets_severity,apis_count,api_categories,config_path"
         assert len(lines) == 3  # header + 2 results
         assert "filesystem" in lines[1]
 
