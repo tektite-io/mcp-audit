@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from mcp_audit.scanners import claude, cursor, vscode, project
+from mcp_audit.scanners import claude, cursor, vscode, project, docker
 
 
 class TestClaudeScanner:
@@ -132,6 +132,152 @@ class TestProjectScanner:
 
         # Should not find the one in node_modules
         assert not any("some-package" in r.config_path for r in results)
+
+
+class TestContinueScanner:
+    """Tests for Continue extension scanner (new mcpServers format)"""
+
+    def test_continue_new_dict_format(self, temp_dir):
+        """Test Continue config with top-level mcpServers as dict"""
+        config = {
+            "models": [{"title": "Ollama", "provider": "ollama"}],
+            "mcpServers": {
+                "MCP_DOCKER": {
+                    "command": "docker",
+                    "args": ["run", "-i", "mcp/docker"]
+                }
+            }
+        }
+        config_path = temp_dir / "config.json"
+        config_path.write_text(json.dumps(config))
+
+        with patch.object(vscode, 'get_vscode_paths', return_value=[]),\
+             patch.object(vscode, 'get_continue_paths', return_value=[config_path]):
+            results = vscode.scan()
+
+        assert len(results) == 1
+        assert results[0].name == "MCP_DOCKER"
+        assert results[0].found_in == "Continue"
+
+    def test_continue_new_list_format(self, temp_dir):
+        """Test Continue config with top-level mcpServers as list"""
+        config = {
+            "mcpServers": [
+                {
+                    "name": "my-mcp",
+                    "command": "npx",
+                    "args": ["@test/mcp-server"]
+                }
+            ]
+        }
+        config_path = temp_dir / "config.json"
+        config_path.write_text(json.dumps(config))
+
+        with patch.object(vscode, 'get_vscode_paths', return_value=[]),\
+             patch.object(vscode, 'get_continue_paths', return_value=[config_path]):
+            results = vscode.scan()
+
+        assert len(results) == 1
+        assert results[0].name == "my-mcp"
+        assert results[0].found_in == "Continue"
+
+    def test_continue_old_experimental_format(self, temp_dir):
+        """Test Continue config with old experimental.modelContextProtocolServers"""
+        config = {
+            "experimental": {
+                "modelContextProtocolServers": [
+                    {
+                        "name": "old-server",
+                        "command": "npx",
+                        "args": ["@test/old-mcp"]
+                    }
+                ]
+            }
+        }
+        config_path = temp_dir / "config.json"
+        config_path.write_text(json.dumps(config))
+
+        with patch.object(vscode, 'get_vscode_paths', return_value=[]),\
+             patch.object(vscode, 'get_continue_paths', return_value=[config_path]):
+            results = vscode.scan()
+
+        assert len(results) == 1
+        assert results[0].name == "old-server"
+
+    def test_continue_no_config(self, temp_dir):
+        """Test Continue scanner when no config exists"""
+        with patch.object(vscode, 'get_vscode_paths', return_value=[]),\
+             patch.object(vscode, 'get_continue_paths', return_value=[temp_dir / "nonexistent.json"]):
+            results = vscode.scan()
+
+        assert len(results) == 0
+
+    def test_continue_multiple_servers(self, temp_dir):
+        """Test Continue config with multiple MCP servers"""
+        config = {
+            "mcpServers": {
+                "docker-mcp": {
+                    "command": "docker",
+                    "args": ["run", "mcp/docker"]
+                },
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["@anthropic/mcp-server-filesystem", "/home"]
+                }
+            }
+        }
+        config_path = temp_dir / "config.json"
+        config_path.write_text(json.dumps(config))
+
+        with patch.object(vscode, 'get_vscode_paths', return_value=[]),\
+             patch.object(vscode, 'get_continue_paths', return_value=[config_path]):
+            results = vscode.scan()
+
+        assert len(results) == 2
+        names = [r.name for r in results]
+        assert "docker-mcp" in names
+        assert "filesystem" in names
+
+
+class TestDockerScanner:
+    """Tests for Docker Compose MCP scanner"""
+
+    def test_scan_docker_compose_mcp(self, temp_dir):
+        """Test scanning Docker Compose with MCP service"""
+        compose_content = """version: '3'
+services:
+  mcp-server:
+    image: mcp-server-docker:latest
+    ports:
+      - "8080:8080"
+"""
+        (temp_dir / "docker-compose.yml").write_text(compose_content)
+
+        results = docker.scan(temp_dir, recursive=False)
+
+        assert len(results) >= 1
+        assert any("mcp" in r.name.lower() for r in results)
+
+    def test_scan_no_docker_compose(self, temp_dir):
+        """Test scanning when no Docker Compose file exists"""
+        results = docker.scan(temp_dir, recursive=False)
+
+        assert len(results) == 0
+
+    def test_scan_docker_compose_no_mcp(self, temp_dir):
+        """Test scanning Docker Compose without MCP services"""
+        compose_content = """version: '3'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+"""
+        (temp_dir / "docker-compose.yml").write_text(compose_content)
+
+        results = docker.scan(temp_dir, recursive=False)
+
+        assert len(results) == 0
 
 
 class TestRiskDetection:
