@@ -127,6 +127,21 @@ class ScanResult:
         # Detect secrets in environment variables
         secrets = _detect_secrets_in_env(env, config_path, name)
 
+        # Also scan all top-level string values in raw config for secrets
+        # (catches secrets hardcoded as direct config values, not inside env block)
+        non_env_strings = {}
+        for k, v in data.items():
+            if k in ("env", "name", "command"):
+                continue  # already scanned or not relevant
+            if isinstance(v, str):
+                non_env_strings[k] = v
+        if non_env_strings:
+            extra_secrets = _detect_secrets_in_env(non_env_strings, config_path, name)
+            existing_keys = {s.env_key for s in secrets}
+            for s in extra_secrets:
+                if s.env_key not in existing_keys:
+                    secrets.append(s)
+
         # Detect API endpoints
         apis = _detect_apis_in_config(data, args, name)
 

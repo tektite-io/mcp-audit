@@ -18,6 +18,7 @@ MCP_CONFIG_FILES = [
     "mcp-manifest.json",
     "claude_desktop_config.json",
     "claude-desktop-config.json",
+    "claude_desktop-config.json",
     "continue_config.json",
     "continue-config.json",
     ".continue/config.json",
